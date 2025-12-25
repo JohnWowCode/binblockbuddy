@@ -1,0 +1,970 @@
+/* Saving overlay */
+#savingOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+#savingOverlay.active {
+    display: flex;
+}
+
+.saving-content {
+    background: #111;
+    border: 1px solid #44ff44;
+    padding: 24px 32px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 0 12px rgba(0, 255, 0, 0.3);
+}
+
+.saving-content p {
+    margin-top: 12px;
+    font-size: 14px;
+    color: #aaffaa;
+    letter-spacing: 1px;
+}
+
+#savingStatusText {
+    font-size: 18px;
+    font-weight: bold;
+    color: #d3ffd3;
+    margin-bottom: 6px;
+}
+
+#savingSubtext {
+    font-size: 13px;
+    color: #8fffc7;
+    min-height: 18px;
+    letter-spacing: 0.5px;
+}
+
+.spinner {
+    width: 36px;
+    height: 36px;
+    border: 4px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #44ff44;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+body {
+    margin: 0;
+    padding: 0;
+    font-family: "Courier New", monospace;
+    background: #080808; /* slightly lighter than pure black */
+    color: #eee;
+}
+
+#selectControls {
+    display: none; /* JS shows this when Select tool is active */
+    margin: 10px auto 0;
+    justify-content: center;
+    gap: 10px;
+    max-width: 520px;
+}
+
+body.space-pan-mode #canvasViewport {
+    cursor: grab;
+}
+
+#canvasViewport.space-pan-grabbing {
+    cursor: grabbing;
+}
+
+#saveControls {
+    display: flex;
+    justify-content: center;
+}
+
+#selectControls button {
+    margin: 0 4px;
+}
+
+.palette-item.palette-favorite::after {
+    content: "★";
+    position: absolute;
+    top: 1px;
+    right: 2px;
+    font-size: 20px;
+    color: #ffd700;
+    text-shadow: 0 0 1px #000, 0 0 2px #000;
+    border: 1px solid #000;
+}
+
+body.light-mode {
+    background: #f5f5f5;
+    color: #111;
+}
+
+#app {
+    display: flex;
+    min-height: 100vh;
+}
+
+#palette, #canvasArea, #outputArea {
+    padding: 15px;
+}
+
+#palette {
+    width: 20%;
+    background: #1a1a1a;
+    border-right: 2px solid #333;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+#palette::-webkit-scrollbar {
+    display: none;
+}
+
+#canvasArea {
+    width: 50%;
+    text-align: center;
+    height: 100vh;
+    overflow: hidden;
+    transition: opacity 0.2s ease;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+}
+
+#canvasArea::-webkit-scrollbar {
+    display: none;
+}
+
+body.palette-hidden:not(.output-hidden) #canvasArea {
+    width: calc(50% + 20%);
+}
+
+body.output-hidden:not(.palette-hidden) #canvasArea {
+    width: calc(50% + 30%);
+}
+
+body.palette-hidden #canvasArea,
+body.output-hidden #canvasArea {
+    margin: 0;
+    padding: 0;
+}
+
+body.freeform-mode #canvasArea {
+    width: 80%;
+}
+
+body.freeform-mode #outputArea,
+body.freeform-mode #exportTag {
+    display: none !important;
+}
+
+body.freeform-mode #randomControls {
+    display: none !important;
+}
+
+body.freeform-mode #brushSizeControls {
+    display: flex !important;
+}
+
+body.freeform-mode #importBtn,
+body.freeform-mode #gimportBtn {
+    display: none !important;
+}
+
+.subtitle {
+    font-size: 0.6em;
+    font-weight: normal;
+    margin-left: 6px;
+}
+
+#outputArea {
+    width: 30%;
+    background: #1a1a1a;
+    border-left: 2px solid #333;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+#outputArea::-webkit-scrollbar {
+    display: none;
+}
+
+body.light-mode #palette,
+body.light-mode #canvasArea,
+body.light-mode #outputArea {
+    background: #ffffff;
+    border-color: #ccc;
+}
+
+button {
+    background: #151515;
+    color: #0f0;
+    border: 2px solid #555;
+    padding: 8px 14px;
+    font-family: "Courier New", monospace;
+    font-size: 13px;
+    text-transform: uppercase;
+    box-shadow: inset 0 0 6px #000, 0 0 4px #000;
+    cursor: pointer;
+    margin: 3px;
+}
+
+button:hover {
+    background: #262626;
+    border-color: #8f8;
+}
+
+body.light-mode button {
+    background: #ffffff;
+    color: #0088ff;
+    border-color: #888;
+    box-shadow: inset 0 0 2px #ccc;
+}
+
+body.light-mode button:hover {
+    background: #f0f0f0;
+    border-color: #0088ff;
+}
+
+#gridControls, #randomControls, #toolControls, #selectControls, #saveControls, #exportControls, #animationControls {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+}
+
+#brushSizeControls {
+    margin-top: 12px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.brush-size-options {
+    display: flex;
+    gap: 8px;
+}
+
+.brush-size-btn {
+    border: 2px solid #555;
+    background: #111;
+    padding: 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.brush-size-btn:hover {
+    border-color: #8f8;
+    transform: translateY(-1px);
+}
+
+.brush-size-btn.brush-size-active {
+    border-color: #0f0;
+    box-shadow: 0 0 6px rgba(0, 255, 0, 0.5);
+}
+
+.brush-size-swatch {
+    display: block;
+    background: linear-gradient(135deg, #44ff44, #00b3b3);
+    border-radius: 4px;
+}
+
+.brush-size-tiny {
+    width: 8px;
+    height: 8px;
+}
+
+.brush-size-small {
+    width: 12px;
+    height: 12px;
+}
+
+.brush-size-medium {
+    width: 16px;
+    height: 16px;
+}
+
+.brush-size-large {
+    width: 20px;
+    height: 20px;
+}
+
+.brush-size-xlarge {
+    width: 26px;
+    height: 26px;
+}
+
+#animationControls {
+    background: rgba(0, 100, 0, 0.2);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #0a0;
+}
+
+#animationControls span {
+    color: #0f0;
+    font-weight: bold;
+}
+
+#frameDisplay {
+    min-width: 60px;
+    text-align: center;
+}
+
+.palette-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+}
+
+.palette-item {
+    width: 48px;
+    height: 48px;
+    background: #222;
+    border: 2px solid #555;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 28px;
+    position: relative;
+}
+
+body.light-mode .palette-item {
+    background: #ffffff;
+    border-color: #cccccc;
+    color: #0088ff;
+}
+
+.palette-item img {
+    width: 90%;
+    height: 90%;
+    object-fit: cover;
+}
+
+#canvasViewport {
+    margin-top: 15px;
+    display: block;
+    overflow: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    width: 100%;
+    flex: 1;
+    position: relative;
+    text-align: center;
+}
+
+#canvasViewport::-webkit-scrollbar {
+    display: none;
+}
+
+#canvasSurface {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    will-change: transform;
+    display: inline-block;
+}
+
+#canvasStack {
+    position: relative;
+    display: inline-block;
+    margin: 0;
+    background: #333;
+    padding: 8px;
+    border-radius: 4px;
+    transition: transform 0.2s ease;
+}
+
+#saveControls {
+    margin: 0;
+}
+
+#canvas {
+    display: inline-grid;
+    gap: 2px;
+    margin: 0;
+    background: transparent;
+    padding: 0;
+    position: relative;
+    z-index: 1;
+}
+
+#canvas.edit-mode {
+    box-shadow: 0 0 0 2px #ff0000;
+}
+
+#freeformLayer {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: calc(100% - 16px);
+    height: calc(100% - 16px);
+    display: none;
+    pointer-events: none;
+    z-index: 3;
+}
+
+body.freeform-mode #freeformLayer {
+    display: block;
+    pointer-events: auto;
+}
+
+body.freeform-mode #canvas {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.freeform-stamp {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: #fff;
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+}
+
+.freeform-stamp.selected {
+    outline: 2px solid #00ffff;
+    box-shadow: 0 0 8px rgba(0, 255, 255, 0.8);
+}
+
+#freeformSelectionBox {
+    position: absolute;
+    border: 2px dashed #00ffff;
+    pointer-events: none;
+    display: none;
+    z-index: 5;
+}
+
+/* Mode select styling */
+#modeSelect {
+    background: #151515;
+    color: #0f0;
+    border: 2px solid #555;
+    padding: 6px 10px;
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+#modeSelect:hover {
+    border-color: #8f8;
+}
+
+#gridControls span {
+    color: #0f0;
+    font-weight: bold;
+    margin-left: 8px;
+}
+
+.canvas-cell {
+    width: 40px;
+    height: 40px;
+    border: 1px solid #555; /* clearer bin outline against #333 canvas */
+    cursor: pointer;
+    background-size: cover;
+    background-position: center;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+/* selection borders: orange when selecting, then mode-based colors */
+.canvas-cell.selected {
+    box-shadow: 0 0 0 2px #ffa500; /* orange for selection */
+}
+
+/* move: green border */
+#canvas[data-selection-mode="move"] .canvas-cell.selected {
+    box-shadow: 0 0 0 2px #00ff00;
+}
+
+/* copy/duplicate: blue border */
+#canvas[data-selection-mode="copy"] .canvas-cell.selected {
+    box-shadow: 0 0 0 2px #0088ff;
+}
+
+/* delete: red border */
+#canvas[data-selection-mode="delete"] .canvas-cell.selected {
+    box-shadow: 0 0 0 2px #ff0000;
+}
+
+/* Rainbow border for active items */
+#toolControls button.tool-active,
+#selectControls button.tool-active,
+.palette-item.active-brush {
+    border: 3px solid;
+    border-image: linear-gradient(45deg, #ff0040, #ffdd00, #00ff6a, #00c8ff, #a800ff, #ff0040) 1;
+    transform: scale(1.1);
+}
+
+/* Selection border colors */
+.canvas-cell.selected {
+    box-shadow: 0 0 0 2px #ffa500; /* orange when selecting */
+}
+
+#canvas[data-selection-mode="move"] .canvas-cell.selected {
+    box-shadow: 0 0 0 2px #00ff00; /* green for move */
+}
+
+#canvas[data-selection-mode="copy"] .canvas-cell.selected {
+    box-shadow: 0 0 0 2px #0088ff; /* blue for copy */
+}
+
+#canvas[data-selection-mode="delete"] .canvas-cell.selected {
+    box-shadow: 0 0 0 2px #ff0000; /* red for delete */
+}
+
+body.light-mode .canvas-cell.selected {
+    box-shadow: 0 0 0 2px #ff0000;
+}
+
+.palette-item.active-brush {
+    box-shadow: 0 0 6px #fff, 0 0 10px #ff00ff;
+    border-color: #ff00ff;
+}
+
+@keyframes rainbow-glow {
+    0% { border-image-slice: 1; }
+    100% { border-image-slice: 1; }
+}
+
+#exportBox {
+    width: 100%;
+    min-height: 300px;
+    height: auto;
+    background: #000;
+    color: #0f0;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 14px;
+    white-space: pre;
+}
+
+#exportPreview {
+    margin-top: 0;
+    padding: 0;
+    background: #050505; /* match very dark gray instead of pure black */
+    border: 1px solid #333;
+    display: inline-block;
+}
+
+#previewContainer {
+    margin-top: 10px;
+    display: flex;
+    align-items: flex-start;
+}
+
+#previewBands {
+    margin-left: 6px;
+    display: flex;
+    flex-direction: column;
+}
+
+.band-row {
+    width: 6px;
+    height: 24px;
+}
+
+#partLegend {
+    margin-left: 6px;
+    display: flex;
+    flex-direction: column;
+    font-size: 11px;
+}
+
+#discordNote {
+    margin-top: 8px;
+    font-size: 10px;
+    color: #888;
+    font-style: italic;
+}
+
+#discordPreview {
+    margin-top: 10px;
+    padding: 8px;
+    background: #000;
+    border: 1px solid #333;
+    color: #0f0;
+    font-family: monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+}
+
+body.light-mode #exportPreview {
+    background: #ffffff;
+    border-color: #ccc;
+}
+
+body.light-mode #exportBox {
+    background: #f0f0f0;
+    color: #0088ff;
+}
+
+body.light-mode input,
+body.light-mode textarea {
+    background: #ffffff;
+    color: #0088ff;
+}
+
+body.light-mode .palette-item {
+    background: #ffffff;
+    border-color: #cccccc;
+    color: #0088ff;
+}
+
+#exportCounters {
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: #ffeb3b;
+    text-align: center;
+}
+
+#tipsBox {
+    margin-top: 16px;
+    padding: 8px;
+    border: 1px dashed #555;
+    font-size: 11px;
+}
+
+body.light-mode #tipsBox {
+    border-color: #888;
+}
+
+#tipsHint {
+    margin-top: 4px;
+    font-size: 11px;
+    color: #888;
+}
+
+.tip-item {
+    padding: 6px 8px;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #eee;
+}
+
+.tip-item:nth-child(1) {
+    background: #111;
+}
+.tip-item:nth-child(2) {
+    background: #151515;
+}
+.tip-item:nth-child(3) {
+    background: #181818;
+}
+.tip-item:nth-child(4) {
+    background: #1b1b1b;
+}
+
+body.light-mode .tip-item {
+    color: #0088ff;
+}
+
+.export-row {
+    display: flex;
+}
+
+.export-cell {
+    width: 24px;
+    height: 24px;
+    margin: 0;
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.export-separator {
+    margin: 4px 0;
+    font-size: 10px;
+    color: #888;
+    text-align: center;
+}
+
+/* Half-part slider styling */
+#halfSplitControl {
+    margin-top: 4px;
+    width: 100%;
+    font-size: 11px;
+    text-align: center;
+}
+
+#halfSplitControl input[type="range"] {
+    width: 100%;
+    margin-top: 2px;
+    accent-color: #0f0;
+}
+
+#halfRowsLabel {
+    margin-left: 4px;
+    color: #ffeb3b;
+}
+
+/* Panel toggle + zoom buttons */
+#zoomButton {
+    min-width: 90px;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.panel-toggle {
+    font-size: 11px;
+    padding: 4px 8px;
+}
+
+.panel-collapsed {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.edge-tag {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    padding: 4px 8px;
+    z-index: 9998;
+    display: none;
+}
+
+#paletteTag {
+    left: 0;
+}
+
+#exportTag {
+    right: 0;
+}
+
+#palette.panel-hidden,
+#outputArea.panel-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+#palette.panel-hidden {
+    transform: translateX(-12px);
+}
+
+#outputArea.panel-hidden {
+    transform: translateX(12px);
+}
+
+/* When both panels are hidden, expand canvas area */
+body.panels-hidden #app {
+    justify-content: center;
+}
+
+body.panels-hidden #canvasArea {
+    width: 100%;
+    max-width: 100vw;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+    padding: 15px 20px 40px;
+}
+
+body.panels-hidden #canvasViewport {
+    min-height: calc(100vh - 150px);
+}
+
+/* Settings overlay */
+#settingsOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: none; /* JS switches this to flex when opened */
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9998;
+}
+
+.modal-panel {
+    background: #111;
+    border: 1px solid #444;
+    padding: 16px;
+    max-width: 80vw;
+    max-height: 80vh;
+    overflow: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.copy-btn {
+    background: #0b3d0b;
+    color: #f0f0f0;
+    border: 2px solid #1a8a1a;
+}
+
+.copy-btn:hover {
+    background: #115011;
+    border-color: #2bd12b;
+}
+
+#settingsPanel {
+    background: #111;
+    border: 1px solid #555;
+    padding: 16px;
+    max-width: 320px;
+    color: #eee;
+}
+
+.settings-row {
+    margin-top: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.settings-actions {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Help overlay */
+#helpOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    z-index: 9999;
+    overflow-y: auto;
+    padding: 40px 20px;
+}
+
+#helpPanel {
+    background: #111;
+    border: 1px solid #555;
+    padding: 20px;
+    max-width: 600px;
+    width: 100%;
+    color: #eee;
+}
+
+#helpPanel h3 {
+    margin: 0 0 16px 0;
+    color: #0f0;
+    font-size: 18px;
+}
+
+.help-section {
+    margin-bottom: 16px;
+}
+
+.help-section h4 {
+    margin: 0 0 8px 0;
+    color: #8f8;
+    font-size: 14px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 4px;
+}
+
+.help-section ul {
+    margin: 0;
+    padding-left: 20px;
+    list-style: disc;
+}
+
+.help-section li {
+    margin-bottom: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.help-section li strong {
+    color: #ff0;
+}
+
+#helpButton {
+    font-size: 14px;
+    padding: 4px 8px;
+    margin-left: 4px;
+}
+
+#warningButton {
+    font-size: 14px;
+    padding: 4px 8px;
+    margin-left: 4px;
+    background: #3d2800;
+    border-color: #8a5a00;
+}
+
+#warningButton:hover {
+    background: #4d3500;
+    border-color: #ffa500;
+}
+
+#resetViewBtn {
+    font-size: 11px;
+    padding: 6px 10px;
+}

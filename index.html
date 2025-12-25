@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BinBag v3b</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+
+    <!-- LEFT: Palette -->
+    <div id="palette">
+        <div class="panel-header">
+            <h2>Palette</h2>
+            <button class="panel-toggle" onclick="toggleSidePanel('palette')">Hide</button>
+        </div>
+
+        <div id="paletteBody">
+            <div id="emojiPalette" class="palette-grid">
+                <!-- Injected by JS -->
+            </div>
+
+            <div id="paletteFavorites">
+                <label><input type="checkbox" id="showFavoritesOnly"> Show favorites only (right click)</label>
+            </div>
+
+            <h3>Add Image Emoji</h3>
+            <input type="file" id="fileInput" accept="image/*">
+            <input id="imageCodeInput" placeholder=":myemoji:">
+            <button onclick="addImageEmoji()">Upload</button>
+
+            <h3>Rename Selected Emoji Code</h3>
+            <input id="renameCodeInput" placeholder=":newcode:">
+            <button onclick="renameSelectedEmoji()">Rename</button>
+        </div>
+    </div>
+
+    <!-- CENTER: Canvas -->
+    <div id="canvasArea">
+        <h2>
+            BinBag v3b <span class="subtitle"></span>
+            <button id="settingsButton" onclick="openSettingsPanel()" title="Settings">⚙</button>
+            <button id="helpButton" onclick="openHelpPanel()" title="Help">❓</button>
+            <button id="warningButton" onclick="openExperimentalWarning()" title="Experimental Features Warning">⚠️</button>
+            <button id="modeToggleBtn" class="mode-chip" onclick="toggleCanvasMode()" type="button">Mode: Grid</button>
+        </h2>
+
+        <div id="gridControls">
+            Rows <input id="rowsInput" type="number" min="1" value="4" style="width:50px">
+            Cols <input id="colsInput" type="number" min="1" value="7" style="width:50px">
+            <span>Size:</span>
+            <select id="modeSelect" onchange="setMode(this.value)">
+                <option value="discord">Discord (default)</option>
+                <option value="discord-tall">Discord Tall (16x7)</option>
+                <option value="i-mode">I-Mode [4Import] (100)</option>
+                <option value="g-mode">G-Mode [4Import] (50)</option>
+                <option value="art-mode">Art (32)</option>
+                <option value="art-small">Art Small (16)</option>
+                <option value="artv-mode">ArtV (32x16)</option>
+                <option value="arth-mode">ArtH (16x32)</option>
+            </select>
+            <button onclick="clearGrid()">Clear</button>
+            <button onclick="undo()">Undo</button>
+            <button onclick="redo()">Redo</button>
+            <button id="importBtn" onclick="openImportDialog()">Import</button>
+            <button id="gimportBtn" onclick="openGimportDialog()">Gimport</button>
+        </div>
+
+        <div id="randomControls">
+            <button onclick="randomInfinite()">Random Infinite</button>
+            <button onclick="randomFace()">Random Face</button>
+            <button onclick="randomFlower()">Random Flower</button>
+            <button onclick="randomHouse()">Random House</button>
+        </div>
+
+        <div id="brushSizeControls" style="display:none;">
+            <span>Brush Size:</span>
+            <div class="brush-size-options">
+                <button class="brush-size-btn" data-size-index="0" title="Tiny">
+                    <span class="brush-size-swatch brush-size-tiny"></span>
+                </button>
+                <button class="brush-size-btn" data-size-index="1" title="Small">
+                    <span class="brush-size-swatch brush-size-small"></span>
+                </button>
+                <button class="brush-size-btn brush-size-active" data-size-index="2" title="Medium">
+                    <span class="brush-size-swatch brush-size-medium"></span>
+                </button>
+                <button class="brush-size-btn" data-size-index="3" title="Large">
+                    <span class="brush-size-swatch brush-size-large"></span>
+                </button>
+                <button class="brush-size-btn" data-size-index="4" title="Very Large">
+                    <span class="brush-size-swatch brush-size-xlarge"></span>
+                </button>
+            </div>
+        </div>
+
+        <div id="toolControls">
+            <button onclick="setTool('brush')">Brush</button>
+            <button onclick="setTool('bucket')">Bucket</button>
+            <button onclick="setTool('select')">Select</button>
+            <button onclick="toggleMirror()">Mirror</button>
+            <button id="zoomButton" onclick="cycleZoom()">Zoom 1x</button>
+            <button id="resetViewBtn" onclick="resetView()" title="Reset view to fit canvas">⟲ Fit</button>
+            <button id="animateToggle" onclick="toggleAnimateMode()">Animate: Off</button>
+        </div>
+
+        <div id="selectControls">
+            <button id="dragBtn" onclick="setSelectionMode('drag')">Drag</button>
+            <button id="selectBtn" onclick="setSelectionMode('select')">Select</button>
+            <button id="moveBtn" onclick="setSelectionMode('move')">Move</button>
+            <button id="copyBtn" onclick="setSelectionMode('copy')">Duplicate</button>
+            <button id="deleteBtn" onclick="setSelectionMode('delete')">Delete</button>
+        </div>
+
+        <div id="canvasViewport">
+            <div id="canvasSurface">
+                <div id="canvasStack">
+                    <div id="canvas"></div>
+                    <div id="freeformLayer"></div>
+                    <div id="freeformSelectionBox"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="animationControls" style="display:none;">
+            <span>Frame:</span>
+            <button onclick="prevFrame()">◀</button>
+            <span id="frameDisplay">1 / 1</span>
+            <button onclick="nextFrame()">▶</button>
+            <button id="playStopBtn" onclick="togglePlayStop()">Play</button>
+            <button onclick="addFrame()">+ Add Frame</button>
+            <button onclick="deleteFrame()">Delete Frame</button>
+            <button onclick="duplicateFrame()">Duplicate</button>
+        </div>
+
+        <div id="saveControls">
+            <button id="savePngBtn" onclick="savePng()">Save PNG</button>
+            <button id="saveGifBtn" onclick="saveGif()" style="display:none;">Save GIF</button>
+            <button id="saveBinblockBtn" onclick="saveBinblock()">Save .binblock</button>
+            <button id="loadBinblockBtn" onclick="triggerBinblockLoad()">Load .binblock</button>
+        </div>
+        <input id="binblockInput" type="file" accept=".binblock,.json" style="display:none;" onchange="handleBinblockFileChange(event)">
+    </div>
+
+    <!-- RIGHT: Output -->
+    <div id="outputArea">
+        <div class="panel-header">
+            <h2>Export</h2>
+            <button class="panel-toggle" onclick="toggleSidePanel('output')">Hide</button>
+        </div>
+
+        <pre id="exportBox"></pre>
+
+        <div id="exportControls">
+            <button onclick="copyExport()">Copy All</button>
+            <div id="splitButtons"></div>
+            <div id="halfSplitControl">
+                <label>Rows per part
+                    <input type="range" id="halfRowsSlider" min="1" max="16" value="8" oninput="updateHalfRowsFromUI(this.value)">
+                    <span id="halfRowsLabel">8</span>
+                </label>
+            </div>
+        </div>
+
+        <div id="previewContainer" onclick="openPreviewModal()">
+            <div id="exportPreview"></div>
+            <div id="previewBands"></div>
+            <div id="partLegend"></div>
+        </div>
+
+        <p id="discordNote">Discord sizing with binblocking is still a mystery. Take all information with a grain of salt.</p>
+
+        <div id="tipsBox"></div>
+        <div id="tipsHint">BinBlock Tips</div>
+    </div>
+
+</div>
+
+<!-- Side tags to restore panels -->
+<button id="paletteTag" class="edge-tag" onclick="toggleSidePanel('palette', false)">Palette ▶</button>
+<button id="exportTag" class="edge-tag" onclick="toggleSidePanel('output', false)">◀ Export</button>
+
+<!-- Settings Overlay -->
+<div id="settingsOverlay" style="display:none;">
+    <div id="settingsPanel">
+        <h3>Theme Settings</h3>
+        <div class="settings-row">
+            <button onclick="applyThemePreset('defaultDark')">Default (Dark)</button>
+            <button onclick="applyThemePreset('defaultLight')">Default (Light)</button>
+        </div>
+        <div class="settings-row">
+            <button onclick="applyThemePreset('ozy')">Ozy</button>
+            <button onclick="applyThemePreset('jack')">Jack</button>
+        </div>
+        <div class="settings-row">
+            <button onclick="applyThemePreset('slime')">Slime</button>
+            <button onclick="applyThemePreset('lava')">Lava</button>
+        </div>
+        <div class="settings-row">
+            <label>Main background <input type="color" id="themeMainBg" oninput="saveThemeSettingsFromUI()"></label>
+        </div>
+        <div class="settings-row">
+            <label>Side panel background <input type="color" id="themePanelBg" oninput="saveThemeSettingsFromUI()"></label>
+        </div>
+        <div class="settings-row">
+            <label>Canvas area background <input type="color" id="themeCanvasBg" oninput="saveThemeSettingsFromUI()"></label>
+        </div>
+        <div class="settings-row">
+            <label>Grid background <input type="color" id="themeGridBg" oninput="saveThemeSettingsFromUI()"></label>
+        </div>
+        <div class="settings-row">
+            <label>Button background <input type="color" id="themeButtonBg" oninput="saveThemeSettingsFromUI()"></label>
+        </div>
+        <div class="settings-row">
+            <label>Button text color <input type="color" id="themeButtonText" oninput="saveThemeSettingsFromUI()"></label>
+        </div>
+        <div class="settings-actions">
+            <button onclick="resetThemeToDefaults()">Reset to defaults</button>
+            <button onclick="closeSettingsPanel()">Close</button>
+        </div>
+    </div>
+
+</div>
+
+<!-- Help Overlay -->
+<div id="helpOverlay" style="display:none;">
+    <div id="helpPanel">
+        <h3>Help & Controls</h3>
+        
+        <div class="help-section">
+            <h4>Keyboard Shortcuts</h4>
+            <ul>
+                <li><strong>Ctrl+Z</strong> - Undo</li>
+                <li><strong>Ctrl+Shift+Z</strong> - Redo</li>
+                <li><strong>Ctrl+Arrow Left</strong> - Previous brush in history</li>
+                <li><strong>Ctrl+Arrow Right</strong> - Next brush in history</li>
+                <li><strong>Hold Space</strong> - Drag/pan around the canvas</li>
+                <li><strong>Mouse Wheel</strong> - Pan up/down</li>
+                <li><strong>Shift+Wheel</strong> - Pan left/right</li>
+                <li><strong>Ctrl+Wheel</strong> - Zoom in/out</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4>Tools</h4>
+            <ul>
+                <li><strong>Brush</strong> - Paint with the selected palette item</li>
+                <li><strong>Bucket</strong> - Fill connected area with current brush</li>
+                <li><strong>Select</strong> - Select, move, copy, or delete areas</li>
+                <li><strong>Mirror</strong> - Paint symmetrically on both sides</li>
+                <li><strong>Zoom</strong> - Cycle through zoom levels (0.05x to 1x)</li>
+                <li><strong>Fit</strong> - Auto-fit canvas to viewport and center</li>
+                <li><strong>Animate</strong> - Create multi-frame animations</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4>Select Sub-modes</h4>
+            <ul>
+                <li><strong>Drag</strong> - Pan around the canvas (like holding space)</li>
+                <li><strong>Select</strong> - Draw selection rectangles</li>
+                <li><strong>Move</strong> - Move selected area to new position</li>
+                <li><strong>Duplicate</strong> - Copy selected area to new position</li>
+                <li><strong>Delete</strong> - Clear selected area</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4>Modes</h4>
+            <ul>
+                <li><strong>Grid Mode</strong> - Standard tile-based editing</li>
+                <li><strong>Freeform (Beta)</strong> - Free placement of stamps anywhere</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4>Size Presets</h4>
+            <ul>
+                <li><strong>Discord</strong> - Default 4x7 grid</li>
+                <li><strong>Discord Tall</strong> - 16x7 for taller images</li>
+                <li><strong>I-Mode</strong> - 100x100 for large imports</li>
+                <li><strong>G-Mode</strong> - 50x50 for quality GIF imports</li>
+                <li><strong>Art</strong> - 32x32 for detailed art</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4>Import/Export</h4>
+            <ul>
+                <li><strong>Import</strong> - Load an image onto the grid</li>
+                <li><strong>Gimport</strong> - Import GIF frames as animation</li>
+                <li><strong>Save PNG</strong> - Export current frame as PNG</li>
+                <li><strong>Save GIF</strong> - Export animation as GIF (Animate mode)</li>
+                <li><strong>.binblock</strong> - Save/load full project files</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4>Tips</h4>
+            <ul>
+                <li>Right-click palette items to favorite them</li>
+                <li>Use "Show favorites only" to filter the palette</li>
+                <li>Hide side panels for more canvas space</li>
+                <li>G-Mode import gives higher quality but larger files</li>
+            </ul>
+        </div>
+
+        <div class="settings-actions">
+            <button onclick="closeHelpPanel()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Preview modal -->
+<div id="previewModal" class="modal-overlay" style="display:none;">
+    <div class="modal-panel">
+        <div class="modal-header">
+            <h3>Preview</h3>
+            <button onclick="closePreviewModal()">Close</button>
+        </div>
+        <div id="previewModalContent"></div>
+    </div>
+</div>
+
+<div id="savingOverlay">
+    <div class="saving-content">
+        <div class="spinner"></div>
+        <p id="savingStatusText">Preparing…</p>
+        <p id="savingSubtext"></p>
+    </div>
+</div>
+
+<input type="file" id="importImageInput" accept="image/*" style="display:none">
+<input type="file" id="gimportInput" accept="image/gif,.gif" style="display:none">
+
+<script src="main.js"></script>
+</body>
+</html>
