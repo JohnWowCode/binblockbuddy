@@ -9,6 +9,25 @@
     z-index: 10000;
 }
 
+/* Changelog overlay matches Help overlay */
+#changelogOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#changelogPanel {
+    background: #1e1e1e;
+    border-radius: 8px;
+    padding: 20px;
+    width: min(720px, 90vw);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
 #savingOverlay.active {
     display: flex;
 }
@@ -429,12 +448,12 @@ body.light-mode .palette-item {
 
 #freeformLayer {
     position: absolute;
-    top: 8px;
-    left: 8px;
-    width: calc(100% - 16px);
-    height: calc(100% - 16px);
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
     display: none;
     pointer-events: none;
+    background: transparent;
     z-index: 3;
 }
 
@@ -446,6 +465,17 @@ body.freeform-mode #freeformLayer {
 body.freeform-mode #canvas {
     opacity: 0;
     pointer-events: none;
+}
+
+/* Show brush size + shape controls only in Freeform mode */
+#brushSizeControls {
+    display: none;
+}
+
+body.freeform-mode #brushSizeControls {
+    display: flex !important;
+    align-items: center;
+    gap: 4px;
 }
 
 .freeform-stamp {

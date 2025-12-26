@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BinBag v3b</title>
+    <title>BinBlockBuddy v3cb</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -40,9 +40,10 @@
     <!-- CENTER: Canvas -->
     <div id="canvasArea">
         <h2>
-            BinBag v3b <span class="subtitle"></span>
+            BinBlockBuddy v3cb <span class="subtitle"></span>
             <button id="settingsButton" onclick="openSettingsPanel()" title="Settings">⚙</button>
             <button id="helpButton" onclick="openHelpPanel()" title="Help">❓</button>
+            <button id="changelogButton" onclick="openChangelog()" title="Changelog">📝</button>
             <button id="warningButton" onclick="openExperimentalWarning()" title="Experimental Features Warning">⚠️</button>
             <button id="modeToggleBtn" class="mode-chip" onclick="toggleCanvasMode()" type="button">Mode: Grid</button>
         </h2>
@@ -54,8 +55,8 @@
             <select id="modeSelect" onchange="setMode(this.value)">
                 <option value="discord">Discord (default)</option>
                 <option value="discord-tall">Discord Tall (16x7)</option>
-                <option value="i-mode">I-Mode [4Import] (100)</option>
-                <option value="g-mode">G-Mode [4Import] (50)</option>
+                <option value="i-mode">BIG IMAGE! (100)</option>
+                <option value="g-mode">IMAGE (50)</option>
                 <option value="art-mode">Art (32)</option>
                 <option value="art-small">Art Small (16)</option>
                 <option value="artv-mode">ArtV (32x16)</option>
@@ -94,6 +95,13 @@
                     <span class="brush-size-swatch brush-size-xlarge"></span>
                 </button>
             </div>
+            <select id="brushShape" title="Brush Shape">
+                <option value="square">Square</option>
+                <option value="circle">Circle</option>
+                <option value="cross">Cross</option>
+                <option value="triangle">Triangle</option>
+                <option value="arrow">Arrow</option>
+            </select>
         </div>
 
         <div id="toolControls">
@@ -309,6 +317,53 @@
 
         <div class="settings-actions">
             <button onclick="closeHelpPanel()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Changelog Overlay -->
+<div id="changelogOverlay" style="display:none;">
+    <div id="changelogPanel">
+        <h3>BinBlockBuddy v3cb – Changelog</h3>
+
+        <div class="help-section">
+            <h4>New in v3cb</h4>
+            <ul>
+                <li>GIMPORT (GIF import) reliability fixes – omggif fallback, safer frame decoding, and better error handling.</li>
+                <li>Smoother image and GIF imports with a "LOADING" overlay and clearer progress messages.</li>
+                <li>Renamed I–Mode to <strong>BIG IMAGE!</strong> (100x100) and G–Mode to <strong>IMAGE</strong> (50x50) to better match how they’re used.</li>
+                <li>Performance tweaks for large grids, including skipping heavy export previews for very big canvases.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4>New in v3c</h4>
+            <ul>
+                <li>Added .binblock project filetype – save and load full BinBag projects.</li>
+                <li>Image importing into the grid for quick emoji layouts.</li>
+                <li>GIF importing (Gimport) to pull GIF frames into animation.</li>
+                <li>Image and GIF exporting from your current grid or animation.</li>
+                <li>Experimental Freeform mode for stamp-based painting off the strict grid.</li>
+                <li>Animation mode with multiple frames and GIF export support.</li>
+                <li><strong>Ctrl+Arrow Left / Ctrl+Arrow Right</strong> to move back and forth through brush history.</li>
+                <li>New canvas size presets including I–Mode and G–Mode for imports.</li>
+                <li>New canvas size presets including I-Mode and G-Mode for imports.</li>
+                <li>Drag controls (space to pan, drag sub-mode) for easier navigation.</li>
+                <li>This new 📜 changelog panel so you can see what changed.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4>Earlier Highlights</h4>
+            <ul>
+                <li>Panel hide/show tags for Palette and Export panels.</li>
+                <li>Zoom system for fitting very large canvases into the viewport.</li>
+                <li>Theme system and Settings panel for customizing colors.</li>
+            </ul>
+        </div>
+
+        <div class="help-actions">
+            <button onclick="closeChangelog()">Close</button>
         </div>
     </div>
 </div>

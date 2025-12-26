@@ -19,7 +19,8 @@ let isFreeformPainting = false;
 let lastFreeformPoint = null;
 let freeformLayerListenersAttached = false;
 let freeformHistoryPushed = false;
-const brushSizeRadii = [0, 0.5, 1, 1.5, 2.2];
+// Brush radii in tile units: tiny=1 tile, small≈1.5, normal≈2.5, then two larger multi-block sizes
+const brushSizeRadii = [0, 1, 1.5, 2.2, 3.2];
 let currentBrushSizeIndex = 2;
 const brushOffsetsCache = new Map();
 let freeformSelectionIds = new Set();
@@ -39,6 +40,12 @@ let spacePanPointerId = null;
 let spacePanViewport = null;
 
 function getCanvasDimensions() {
+    if (canvasMode === "freeform") {
+        return {
+            width: cols,
+            height: rows
+        };
+    }
     return {
         width: cols * TILE_SIZE,
         height: rows * TILE_SIZE
@@ -474,6 +481,9 @@ function renderGridWithPreview(previewR, previewC) {
     const adjustedR = Math.max(0, Math.min(previewR - Math.floor(h/2), rows - h));
     const adjustedC = Math.max(0, Math.min(previewC - Math.floor(w/2), cols - w));
 
+    // Build cells into a fragment to minimize layout thrash, then append once
+    const frag = document.createDocumentFragment();
+
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
             const cell = document.createElement("div");
@@ -868,14 +878,26 @@ function ensureOmggif() {
     if (!omggifLoadingPromise) {
         omggifLoadingPromise = new Promise((resolve) => {
             const script = document.createElement("script");
-            script.src = "https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.js";
+            // Use unpkg as primary source with jsdelivr as fallback
+            script.src = "https://unpkg.com/omggif@1.0.10/omggif.js";
             script.onload = () => {
                 console.log("omggif loaded successfully");
                 resolve();
             };
             script.onerror = (err) => {
-                console.error("Failed to load omggif from CDN", err);
-                resolve();
+                console.error("Failed to load omggif from primary CDN, trying fallback", err);
+                // Try fallback CDN
+                const fallbackScript = document.createElement("script");
+                fallbackScript.src = "https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.js";
+                fallbackScript.onload = () => {
+                    console.log("omggif loaded from fallback CDN");
+                    resolve();
+                };
+                fallbackScript.onerror = () => {
+                    console.error("Failed to load omggif from both CDNs");
+                    resolve();
+                };
+                document.head.appendChild(fallbackScript);
             };
             document.head.appendChild(script);
         });
@@ -894,9 +916,25 @@ async function getImageElement(src) {
 }
 
 async function importImageFile(file) {
+    // Show loading overlay for large images
+    setSavingOverlay(true);
+    updateSavingOverlayStatus("Processing image...", "");
+    
     const dataUrl = await readFileAsDataURL(file);
     const img = await loadImageSource(dataUrl);
-    await applyImageToGrid(img);
+    
+    try {
+        await applyImageToGrid(img);
+        
+        // For I-Mode, keep overlay visible a bit longer to mask render lag
+        if (rows >= 50 || cols >= 50) {
+            updateSavingOverlayStatus("Finishing up...", "");
+            await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+    } finally {
+        // Always hide overlay when done
+        setSavingOverlay(false);
+    }
 }
 
 function colorDistance(c1, c2) {
@@ -950,7 +988,8 @@ async function applyImageToGrid(img) {
     const imageData = ctx.getImageData(0, 0, targetCols, targetRows).data;
     const bgItem = getBackgroundItem();
 
-    const newGrid = gridFromImageData(imageData, targetRows, targetCols, paletteColors, bgItem);
+    // Use a chunked converter for imports so large I-Mode images don't freeze the UI
+    const newGrid = await gridFromImageDataForImport(imageData, targetRows, targetCols, paletteColors, bgItem);
 
     if (grid && grid.length) {
         pushHistory();
@@ -958,7 +997,16 @@ async function applyImageToGrid(img) {
 
     grid = newGrid;
 
+    // Defer heavy render work to prevent mouse lag, especially in I-Mode
+    updateSavingOverlayStatus("Rendering grid...", "");
+    await waitForAnimationFrame();
+    
     renderGrid();
+    
+    await waitForAnimationFrame();
+    updateSavingOverlayStatus("Updating export...", "");
+    await waitForAnimationFrame();
+    
     updateExport();
     updateFreeformLayer();
 }
@@ -979,6 +1027,36 @@ function gridFromImageData(imageData, targetRows, targetCols, paletteColors, bgI
                 b: imageData[idx + 2]
             };
             newGrid[r][c] = findClosestPaletteEntry(color, paletteColors, bgItem);
+        }
+    }
+    return newGrid;
+}
+
+// Chunked version used only for image imports to keep the browser responsive on large grids
+async function gridFromImageDataForImport(imageData, targetRows, targetCols, paletteColors, bgItem) {
+    const newGrid = Array.from({ length: targetRows }, () => Array(targetCols).fill(bgItem));
+    // Only bother chunking for larger grids (like I-Mode / G-Mode)
+    const rowsPerChunk = targetRows >= 40 || targetCols >= 40 ? 1 : targetRows;
+
+    for (let r = 0; r < targetRows; r++) {
+        for (let c = 0; c < targetCols; c++) {
+            const idx = (r * targetCols + c) * 4;
+            const alpha = imageData[idx + 3];
+            if (alpha < 10) {
+                newGrid[r][c] = bgItem;
+                continue;
+            }
+            const color = {
+                r: imageData[idx],
+                g: imageData[idx + 1],
+                b: imageData[idx + 2]
+            };
+            newGrid[r][c] = findClosestPaletteEntry(color, paletteColors, bgItem);
+        }
+
+        if (rowsPerChunk && r % rowsPerChunk === rowsPerChunk - 1) {
+            // Yield so mouse / scrolling stay responsive during big imports
+            await waitForAnimationFrame();
         }
     }
     return newGrid;
@@ -1545,6 +1623,16 @@ function closeHelpPanel() {
     if (overlay) overlay.style.display = "none";
 }
 
+function openChangelog() {
+    const overlay = document.getElementById("changelogOverlay");
+    if (overlay) overlay.style.display = "flex";
+}
+
+function closeChangelog() {
+    const overlay = document.getElementById("changelogOverlay");
+    if (overlay) overlay.style.display = "none";
+}
+
 function openExperimentalWarning() {
     alert("⚠️ Experimental Features Warning\n\nGimport and large animations are experimental, as is Freeform mode.\n\nG-Mode and I-Mode are mainly designed for importing and exporting and can cause some slight issues to occur.");
 }
@@ -1753,7 +1841,8 @@ function cloneFreeformArray(arr) {
 function captureEditorState() {
     return {
         grid: cloneGrid(grid),
-        freeform: cloneFreeformArray(freeformStamps)
+        freeform: cloneFreeformArray(freeformStamps),
+        mode: canvasMode
     };
 }
 
@@ -1761,6 +1850,10 @@ function applyEditorState(state) {
     if (!state) return;
     grid = cloneGrid(state.grid);
     freeformStamps = cloneFreeformArray(state.freeform);
+    if (state.mode) {
+        canvasMode = state.mode;
+        updateCanvasModeUI();
+    }
 }
 
 function pushHistory() {
@@ -1888,13 +1981,20 @@ function clearGrid() {
     grid = grid.map(row => row.map(() => bg));
     renderGrid();
     updateExport();
-    updateFreeformLayer();
+    if (canvasMode === "freeform") {
+        freeformStamps = [];
+        freeformStampId = 0;
+        updateFreeformLayer();
+    }
 }
 
 function renderGrid() {
     const canvas = document.getElementById("canvas");
     canvas.style.gridTemplateColumns = `repeat(${cols}, 40px)`;
     canvas.innerHTML = "";
+
+    // Use a fragment so we don't thrash the DOM with 10,000+ appends in I-Mode
+    const frag = document.createDocumentFragment();
 
     canvas.onmousedown = () => {
         isMouseDown = true;
@@ -2047,9 +2147,10 @@ function renderGrid() {
                 }
             };
 
-            canvas.appendChild(cell);
+            frag.appendChild(cell);
         }
     }
+    canvas.appendChild(frag);
     
     // Update canvas transform after grid is rendered to ensure proper sizing
     setTimeout(() => updateCanvasTransform(), 10);
@@ -2196,6 +2297,19 @@ function updateExport() {
 
     preview.innerHTML = "";
     bandsContainer.innerHTML = "";
+
+    // For very large grids (like I-Mode 100x100), building a full
+    // per-cell preview is extremely expensive and mostly redundant
+    // with the main canvas. Skip it to keep the app smooth.
+    const totalCells = rows * cols;
+    const MAX_PREVIEW_CELLS = 2500; // e.g. up to 50x50
+    if (totalCells > MAX_PREVIEW_CELLS) {
+        const msg = document.createElement("div");
+        msg.className = "export-preview-disabled";
+        msg.textContent = "Preview disabled for large grids to keep things fast.";
+        preview.appendChild(msg);
+        return;
+    }
 
     let currentPart = 0;
 
@@ -2528,18 +2642,18 @@ function freeformBucketFill() {
     const width = cols * TILE_SIZE;
     const height = rows * TILE_SIZE;
 
-    // Clear existing stamps and fill with grid of current brush
-    freeformStamps = [];
-    freeformStampId = 0;
-
+    // Fill only empty space with current brush
+    const existingStamps = new Set(freeformStamps.map(stamp => `${Math.floor(stamp.x / TILE_SIZE)},${Math.floor(stamp.y / TILE_SIZE)}`));
     for (let y = 0; y < height; y += TILE_SIZE) {
         for (let x = 0; x < width; x += TILE_SIZE) {
-            freeformStamps.push({
-                id: ++freeformStampId,
-                x: x,
-                y: y,
-                item: { ...activeBrush }
-            });
+            if (!existingStamps.has(`${Math.floor(x / TILE_SIZE)},${Math.floor(y / TILE_SIZE)}`)) {
+                freeformStamps.push({
+                    id: ++freeformStampId,
+                    x: x,
+                    y: y,
+                    item: { ...activeBrush }
+                });
+            }
         }
     }
 
@@ -2596,8 +2710,12 @@ function placeFreeformStamp(evt, options = {}) {
 
     // Get brush offsets for current brush size
     const offsets = getBrushOffsets(currentBrushSizeIndex);
+    const shape = document.getElementById("brushShape") ? document.getElementById("brushShape").value : "square";
     
     for (const offset of offsets) {
+        if (shape !== "square" && !isShapePoint(centerX + offset.x, centerY + offset.y, centerX + half, centerY + half, shape, half)) {
+            continue;
+        }
         const stampX = clamp(centerX + offset.x, -TILE_SIZE, width);
         const stampY = clamp(centerY + offset.y, -TILE_SIZE, height);
 
@@ -2627,9 +2745,27 @@ function placeFreeformStamp(evt, options = {}) {
     updateFreeformLayer();
 }
 
+function isShapePoint(x, y, cx, cy, shape, radius) {
+    const dx = Math.abs(x - cx);
+    const dy = Math.abs(y - cy);
+    switch (shape) {
+        case "circle":
+            return Math.sqrt(dx * dx + dy * dy) <= radius;
+        case "cross":
+            return dx <= radius / 2 || dy <= radius / 2;
+        case "triangle":
+            return (dx + dy) <= radius * 1.5;
+        case "arrow":
+            return dy <= radius && (dx <= radius / 2 || y > cy);
+        default:
+            return true;
+    }
+}
+
 function updateFreeformLayer() {
     const layer = document.getElementById("freeformLayer");
     if (!layer) return;
+    // Use tile-sized canvas dimensions so the clickable area matches stamp positions
     const width = cols * TILE_SIZE;
     const height = rows * TILE_SIZE;
     layer.style.width = `${width}px`;
@@ -2790,7 +2926,20 @@ async function savePng() {
 
         updateSavingOverlayStatus("Encoding PNG…", "");
         await waitForAnimationFrame();
-        const dataUrl = off.toDataURL("image/png");
+
+        let dataUrl;
+        try {
+            dataUrl = off.toDataURL("image/png");
+        } catch (err) {
+            console.error("PNG toDataURL failed", err);
+            if (err && (err.name === "SecurityError" || String(err.message).toLowerCase().includes("tainted"))) {
+                alert("PNG export failed because the canvas was tainted by a cross-origin image.\n\nImages loaded from external sites sometimes block saving. Try removing remote images or using only local / uploaded emojis, then save again.");
+            } else {
+                alert("PNG export failed. Please try again.");
+            }
+            return;
+        }
+
         updateSavingOverlayStatus("Saving PNG…", "");
 
         const link = document.createElement("a");
@@ -3194,7 +3343,8 @@ function randomDog() {
 let animateMode = false;
 let frames = []; // array of grid snapshots
 let currentFrame = 0;
-const MAX_FRAMES = Infinity; // Allow infinite frames
+// Cap total frames to avoid massive GIF imports freezing the browser (but still allow fairly large GIFs)
+const MAX_FRAMES = 200;
 let isPlaying = false;
 let playbackInterval = null;
 
@@ -3222,9 +3372,13 @@ function toggleAnimateMode() {
     }
     
     if (animateMode) {
-        // Initialize frames with current grid if empty
+        // Initialize frames with current grid or freeform stamps as frame 0
         if (frames.length === 0) {
-            frames.push(cloneGrid(grid));
+            if (canvasMode === "freeform") {
+                frames.push(cloneFreeformArray(freeformStamps));
+            } else {
+                frames.push(cloneGrid(grid));
+            }
         }
         currentFrame = 0;
         updateFrameDisplay();
@@ -3249,6 +3403,15 @@ function loadFrame(index) {
     currentFrame = index;
     grid = cloneGrid(frames[currentFrame]);
     renderGrid();
+    updateExport();
+    updateFrameDisplay();
+}
+
+function loadFreeformFrame(index) {
+    if (index < 0 || index >= frames.length) return;
+    currentFrame = index;
+    freeformStamps = cloneFreeformArray(frames[currentFrame]);
+    updateFreeformLayer();
     updateExport();
     updateFrameDisplay();
 }
@@ -3836,13 +3999,23 @@ class LZWEncoder {
 // --- GIF IMPORT ---
 async function importGifFile(file) {
     try {
+        // Show loading overlay
+        setSavingOverlay(true);
+        updateSavingOverlayStatus("Loading GIF...", "");
+        
         const arrayBuffer = await file.arrayBuffer();
+        updateSavingOverlayStatus("Decoding GIF frames...", "");
+        
         const gifFrames = await parseGifFrames(arrayBuffer);
         
-        if (!gifFrames.length) {
-            alert("Could not parse GIF frames");
+        if (!gifFrames || !gifFrames.length) {
+            console.warn("GIF had no decodable frames, falling back to static image import");
+            setSavingOverlay(false);
+            await importImageFile(file);
             return;
         }
+        
+        updateSavingOverlayStatus("Processing GIF frames...", "0%");
         
         const wasPlaying = isPlaying;
         if (isPlaying) {
@@ -3877,14 +4050,26 @@ async function importGifFile(file) {
         resizeCtx.imageSmoothingEnabled = true;
         resizeCtx.imageSmoothingQuality = "high";
         
-        for (const frameCanvas of gifFrames) {
+        // Process frames with progress updates
+        const totalFrames = Math.min(gifFrames.length, MAX_FRAMES);
+        for (let i = 0; i < totalFrames; i++) {
+            const frameCanvas = gifFrames[i];
+            
+            // Update progress every few frames
+            if (i % 5 === 0 || i === totalFrames - 1) {
+                const percent = Math.round((i / totalFrames) * 100);
+                updateSavingOverlayStatus("Processing GIF frames...", `${percent}%`);
+                await waitForAnimationFrame(); // Let UI update
+            }
+            
             resizeCtx.clearRect(0, 0, targetCols, targetRows);
             resizeCtx.drawImage(frameCanvas, 0, 0, targetCols, targetRows);
             const imageData = resizeCtx.getImageData(0, 0, targetCols, targetRows).data;
             const newGrid = gridFromImageData(imageData, targetRows, targetCols, paletteColors, bgItem);
             frames.push(newGrid);
-            if (frames.length >= MAX_FRAMES) break;
         }
+        
+        updateSavingOverlayStatus("Finalizing...", "");
         
         currentFrame = 0;
         loadFrame(0);
@@ -3897,22 +4082,37 @@ async function importGifFile(file) {
         if (wasPlaying) {
             togglePlayStop();
         }
+        
+        // Hide loading overlay
+        setSavingOverlay(false);
 
     } catch (err) {
         console.error("GIF import failed:", err);
-        alert("Failed to import GIF. Try importing as a regular image instead.");
+
+        // If we managed to decode some frames, try to show them instead of failing hard
+        if (frames && frames.length) {
+            try {
+                currentFrame = 0;
+                loadFrame(0);
+                updateFrameDisplay();
+            } catch (innerErr) {
+                console.error("Failed to display decoded GIF frames:", innerErr);
+                alert("Failed to import GIF. Try importing as a regular image instead.");
+            }
+        } else {
+            alert("Failed to import GIF. Try importing as a regular image instead.");
+        }
+
+        setSavingOverlay(false);
     }
 }
 
 async function parseGifFrames(arrayBuffer) {
-    // Try ImageDecoder first (best fidelity)
-    const decodedFrames = await decodeGifWithImageDecoder(arrayBuffer);
-    if (decodedFrames && decodedFrames.length) {
-        console.log(`ImageDecoder extracted ${decodedFrames.length} frames`);
-        return decodedFrames;
-    }
-
-    // Fallback to omggif parser
+    // Skip ImageDecoder for now - it's causing issues
+    // Go straight to omggif which is more reliable
+    console.log("Using omggif parser for GIF frames");
+    
+    // Use omggif parser
     try {
         await ensureOmggif();
         if (typeof GifReader === "undefined") {
@@ -3931,22 +4131,49 @@ async function parseGifFrames(arrayBuffer) {
 
         const width = reader.width;
         const height = reader.height;
+        let numFrames = 0;
+        
+        // Safely get frame count
+        try {
+            numFrames = reader.numFrames();
+        } catch (err) {
+            console.error("Failed to get numFrames, trying manual detection", err);
+            numFrames = 0;
+        }
+        
+        // Cap at MAX_FRAMES
+        const maxFramesToDecode = Math.min(numFrames || 999, MAX_FRAMES);
+        console.log(`omggif: decoding up to ${maxFramesToDecode} frames (reported: ${numFrames})`);
+        
         const workingCanvas = document.createElement("canvas");
         workingCanvas.width = width;
         workingCanvas.height = height;
         const workingCtx = workingCanvas.getContext("2d");
         const captured = [];
 
-        for (let index = 0; index < reader.numFrames(); index++) {
-            const imageData = workingCtx.createImageData(width, height);
-            reader.decodeAndBlitFrameRGBA(index, imageData.data);
-            workingCtx.putImageData(imageData, 0, 0);
+        // Decode frames until we hit an error or reach the limit
+        for (let index = 0; index < maxFramesToDecode; index++) {
+            try {
+                // Show progress
+                if (index % 5 === 0 || index === maxFramesToDecode - 1) {
+                    updateSavingOverlayStatus("Decoding GIF frames...", `${index + 1}/${numFrames || '?'}`);
+                    await waitForAnimationFrame();
+                }
+                
+                const imageData = workingCtx.createImageData(width, height);
+                reader.decodeAndBlitFrameRGBA(index, imageData.data);
+                workingCtx.putImageData(imageData, 0, 0);
 
-            const frameCanvas = document.createElement("canvas");
-            frameCanvas.width = width;
-            frameCanvas.height = height;
-            frameCanvas.getContext("2d").drawImage(workingCanvas, 0, 0);
-            captured.push(frameCanvas);
+                const frameCanvas = document.createElement("canvas");
+                frameCanvas.width = width;
+                frameCanvas.height = height;
+                frameCanvas.getContext("2d").drawImage(workingCanvas, 0, 0);
+                captured.push(frameCanvas);
+            } catch (err) {
+                // Reached end of frames or decode error
+                console.log(`Stopped decoding at frame ${index}: ${err.message}`);
+                break;
+            }
         }
 
         if (!captured.length) {
@@ -3964,6 +4191,7 @@ async function parseGifFrames(arrayBuffer) {
 
 async function decodeGifWithImageDecoder(arrayBuffer) {
     if (typeof ImageDecoder === "undefined") {
+        console.log("ImageDecoder not available, skipping");
         return null;
     }
 
@@ -3980,8 +4208,19 @@ async function decodeGifWithImageDecoder(arrayBuffer) {
         }
 
         const track = tracks[0];
+        
+        // Wait for track to be ready with 5 second timeout
         if (track.ready) {
-            await track.ready;
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("Track ready timeout")), 5000)
+            );
+            try {
+                await Promise.race([track.ready, timeoutPromise]);
+            } catch (err) {
+                console.warn("ImageDecoder track.ready timed out, falling back");
+                decoder.close?.();
+                return null;
+            }
         }
 
         const frameCount = track.frameCount || 0;
@@ -3990,21 +4229,42 @@ async function decodeGifWithImageDecoder(arrayBuffer) {
             return null;
         }
 
+        console.log(`ImageDecoder: decoding ${frameCount} frames`);
         const frames = [];
         for (let i = 0; i < frameCount; i++) {
-            const { image } = await decoder.decode({ frameIndex: i });
-            const canvas = document.createElement("canvas");
-            canvas.width = image.displayWidth || image.codedWidth;
-            canvas.height = image.displayHeight || image.codedHeight;
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(image, 0, 0);
-            frames.push(canvas);
-            if (typeof image.close === "function") {
-                image.close();
+            // Show progress with frame count
+            if (i % 5 === 0 || i === frameCount - 1) {
+                updateSavingOverlayStatus("Decoding GIF frames...", `${i + 1}/${frameCount}`);
+                await waitForAnimationFrame();
+            }
+            
+            // Decode with timeout per frame
+            const decodePromise = decoder.decode({ frameIndex: i });
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("Frame decode timeout")), 3000)
+            );
+            
+            try {
+                const { image } = await Promise.race([decodePromise, timeoutPromise]);
+                const canvas = document.createElement("canvas");
+                canvas.width = image.displayWidth || image.codedWidth;
+                canvas.height = image.displayHeight || image.codedHeight;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(image, 0, 0);
+                frames.push(canvas);
+                if (typeof image.close === "function") {
+                    image.close();
+                }
+            } catch (err) {
+                console.warn(`Frame ${i} decode failed or timed out, stopping ImageDecoder`);
+                decoder.close?.();
+                // Return what we have so far, or null if nothing
+                return frames.length > 0 ? frames : null;
             }
         }
 
         decoder.close?.();
+        console.log(`ImageDecoder successfully decoded ${frames.length} frames`);
         return frames;
     } catch (err) {
         console.warn("ImageDecoder GIF decode failed", err);
