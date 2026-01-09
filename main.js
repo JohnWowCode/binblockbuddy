@@ -6,6 +6,9 @@ const TILE_SIZE = 40;
 const BINBLOCK_VERSION = 1;
 const FREEFORM_DISTANCE_THRESHOLD = TILE_SIZE / 2;
 
+ const ASSET_PACK_STORAGE_KEY = "binblockbuddy.assetPack";
+ let currentAssetPack = "legacy";
+
 // zoom levels for canvas (added more levels for very large canvases)
 let canvasMode = "grid";
 const zoomLevels = [1, 0.75, 0.5, 0.35, 0.25, 0.15, 0.1, 0.05];
@@ -62,6 +65,92 @@ function applyCrossOriginIfNeeded(img, src) {
     if (shouldUseCrossOrigin(src)) {
         img.crossOrigin = "anonymous";
         img.referrerPolicy = "no-referrer";
+    }
+}
+
+function normalizeAssetPack(value) {
+    return value === "usa" ? "usa" : "legacy";
+}
+
+function loadAssetPackSetting() {
+    try {
+        const stored = localStorage.getItem(ASSET_PACK_STORAGE_KEY);
+        currentAssetPack = normalizeAssetPack(stored);
+    } catch (err) {
+        currentAssetPack = "legacy";
+    }
+}
+
+function persistAssetPackSetting() {
+    try {
+        localStorage.setItem(ASSET_PACK_STORAGE_KEY, currentAssetPack);
+    } catch (err) {
+        // ignore
+    }
+}
+
+function setAssetPack(value) {
+    const next = normalizeAssetPack(value);
+    if (next === currentAssetPack) return;
+    currentAssetPack = next;
+    persistAssetPackSetting();
+    rebuildImageDefaults();
+    renderPalette();
+}
+
+function updateAssetPackUI() {
+    const legacy = document.getElementById("assetPackLegacy");
+    const usa = document.getElementById("assetPackUsa");
+    if (legacy) legacy.checked = currentAssetPack === "legacy";
+    if (usa) usa.checked = currentAssetPack === "usa";
+}
+
+function getDefaultBrushCodeForPack() {
+    return currentAssetPack === "usa" ? ":0001:" : ":01:";
+}
+
+function getDefaultBackgroundCodeForPack() {
+    return currentAssetPack === "usa" ? ":0000:" : ":00:";
+}
+
+function rebuildImageDefaults() {
+    imageDefaults.length = 0;
+
+    if (currentAssetPack === "usa") {
+        // USA pack tiles: assets/usa/tile0000.png ... tile1024.png
+        // Export codes use :0000: style.
+        for (let i = 0; i <= 1024; i++) {
+            const num = i.toString().padStart(4, "0");
+            imageDefaults.push({
+                type: "img",
+                src: `assets/usa/tile${num}.png`,
+                char: `:${num}:`,
+                category: "default"
+            });
+        }
+        return;
+    }
+
+    // Legacy pack: assets/00.png..95.png (skip 63 which doesn't exist)
+    for (let i = 0; i <= 95; i++) {
+        if (i === 63) continue;
+        const num = i.toString().padStart(2, "0");
+        // use updated art for 8 and 49 while keeping :08: and :49: codes
+        let fileName;
+        if (num === "08") {
+            fileName = "8new.png"; // actual file present in assets
+        } else if (num === "49") {
+            fileName = "49new.png";
+        } else {
+            fileName = `${num}.png`;
+        }
+
+        imageDefaults.push({
+            type: "img",
+            src: `assets/${fileName}`,
+            char: `:${num}:`,
+            category: "default"
+        });
     }
 }
 
@@ -447,19 +536,6 @@ function applyBinblockPayload(payload) {
 
 // imageDefaults: assets 00.png..95.png as default emojis (skip 63 which doesn't exist)
 const imageDefaults = [];
-for (let i = 0; i <= 95; i++) {
-    if (i === 63) continue;
-    const num = i.toString().padStart(2, "0");
-    // use updated art for 8 and 49 while keeping :08: and :49: codes
-    let fileName;
-    if (num === "08") {
-        fileName = "8new.png"; // actual file present in assets
-    } else if (num === "49") {
-        fileName = "49new.png";
-    } else {
-        fileName = `${num}.png`;
-    }
-
 // --- SELECTION HELPERS ---
 function mergeSelectionRects(existing, rect) {
     if (!existing || !existing.length) return [rect];
@@ -660,13 +736,9 @@ function handleSelectionActionAt(targetR, targetC) {
 
     updateFreeformLayer();
 }
-    imageDefaults.push({
-        type: "img",
-        src: `assets/${fileName}`,
-        char: `:${num}:`,
-        category: "default"
-    });
-}
+
+loadAssetPackSetting();
+rebuildImageDefaults();
 
 // customPalette: images user uploads
 let customPalette = [];
@@ -1068,7 +1140,8 @@ function getRandomPaletteItem() {
 }
 
 function getBackgroundItem() {
-    const zero = palette.find(p => p.char === ":00:");
+    const code = getDefaultBackgroundCodeForPack();
+    const zero = palette.find(p => p.char === code);
     return zero || palette[0];
 }
 
@@ -1776,6 +1849,21 @@ window.addEventListener("load", () => {
         favCb.checked = false;
         favCb.addEventListener("change", renderPalette);
     }
+
+    const legacy = document.getElementById("assetPackLegacy");
+    const usa = document.getElementById("assetPackUsa");
+    updateAssetPackUI();
+    if (legacy) {
+        legacy.addEventListener("change", () => {
+            if (legacy.checked) setAssetPack("legacy");
+        });
+    }
+    if (usa) {
+        usa.addEventListener("change", () => {
+            if (usa.checked) setAssetPack("usa");
+        });
+    }
+
     renderPalette();
     loadThemeSettings();
     applyThemeSettings();
@@ -3008,8 +3096,8 @@ function renameSelectedEmoji() {
 generateGrid();
 setTool("brush");
 setSelectionMode("select"); // Select is default subsection
-// Set :01: as default brush and add to history
-const defaultBrush = [...imageDefaults, ...customPalette].find(item => item.char === ":01:");
+// Set default brush and add to history
+const defaultBrush = [...imageDefaults, ...customPalette].find(item => item.char === getDefaultBrushCodeForPack());
 if (defaultBrush) {
     activeBrush = defaultBrush;
     addToBrushHistory(defaultBrush);
