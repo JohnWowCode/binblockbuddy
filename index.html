@@ -14,7 +14,7 @@
     <div id="palette">
         <div class="panel-header">
             <h2>Palette</h2>
-            <button class="panel-toggle" onclick="toggleSidePanel('palette')">Hide</button>
+            <button id="paletteHideBtn" class="panel-toggle">Hide</button>
         </div>
 
         <div id="paletteBody">
@@ -35,11 +35,11 @@
             <h3>Add Image Emoji</h3>
             <input type="file" id="fileInput" accept="image/*">
             <input id="imageCodeInput" placeholder=":myemoji:">
-            <button onclick="addImageEmoji()">Upload</button>
+            <button id="uploadEmojiBtn">Upload</button>
 
             <h3>Rename Selected Emoji Code</h3>
             <input id="renameCodeInput" placeholder=":newcode:">
-            <button onclick="renameSelectedEmoji()">Rename</button>
+            <button id="renameEmojiBtn">Rename</button>
         </div>
     </div>
 
@@ -47,18 +47,18 @@
     <div id="canvasArea">
         <h2>
             BinBlockBuddy v3cb <span class="subtitle"></span>
-            <button id="settingsButton" onclick="openSettingsPanel()" title="Settings">⚙</button>
-            <button id="helpButton" onclick="openHelpPanel()" title="Help">❓</button>
-            <button id="changelogButton" onclick="openChangelog()" title="Changelog">📝</button>
-            <button id="warningButton" onclick="openExperimentalWarning()" title="Experimental Features Warning">⚠️</button>
-            <button id="modeToggleBtn" class="mode-chip" onclick="toggleCanvasMode()" type="button">Mode: Grid</button>
+            <button id="settingsButton" title="Settings">&#9881;</button>
+            <button id="helpButton" title="Help">&#10067;</button>
+            <button id="changelogButton" title="Changelog">&#128221;</button>
+            <button id="warningButton" title="Experimental Features Warning">&#9888;&#65039;</button>
+            <button id="modeToggleBtn" class="mode-chip" type="button">Mode: Grid</button>
         </h2>
 
         <div id="gridControls">
             Rows <input id="rowsInput" type="number" min="1" value="4" style="width:50px">
             Cols <input id="colsInput" type="number" min="1" value="7" style="width:50px">
             <span>Size:</span>
-            <select id="modeSelect" onchange="setMode(this.value)">
+            <select id="modeSelect">
                 <option value="discord">Discord (default)</option>
                 <option value="discord-tall">Discord Tall (16x7)</option>
                 <option value="i-mode">BIG IMAGE! (100)</option>
@@ -68,18 +68,18 @@
                 <option value="artv-mode">ArtV (32x16)</option>
                 <option value="arth-mode">ArtH (16x32)</option>
             </select>
-            <button onclick="clearGrid()">Clear</button>
-            <button onclick="undo()">Undo</button>
-            <button onclick="redo()">Redo</button>
-            <button id="importBtn" onclick="openImportDialog()">Import</button>
-            <button id="gimportBtn" onclick="openGimportDialog()">Gimport</button>
+            <button id="clearBtn">Clear</button>
+            <button id="undoBtn">Undo</button>
+            <button id="redoBtn">Redo</button>
+            <button id="importBtn">Import</button>
+            <button id="gimportBtn">Gimport</button>
         </div>
 
         <div id="randomControls">
-            <button onclick="randomInfinite()">Random Infinite</button>
-            <button onclick="randomFace()">Random Face</button>
-            <button onclick="randomFlower()">Random Flower</button>
-            <button onclick="randomHouse()">Random House</button>
+            <button id="randomInfiniteBtn">Random Infinite</button>
+            <button id="randomFaceBtn">Random Face</button>
+            <button id="randomFlowerBtn">Random Flower</button>
+            <button id="randomHouseBtn">Random House</button>
         </div>
 
         <div id="brushSizeControls" style="display:none;">
@@ -111,21 +111,21 @@
         </div>
 
         <div id="toolControls">
-            <button onclick="setTool('brush')">Brush</button>
-            <button onclick="setTool('bucket')">Bucket</button>
-            <button onclick="setTool('select')">Select</button>
-            <button onclick="toggleMirror()">Mirror</button>
-            <button id="zoomButton" onclick="cycleZoom()">Zoom 1x</button>
-            <button id="resetViewBtn" onclick="resetView()" title="Reset view to fit canvas">⟲ Fit</button>
-            <button id="animateToggle" onclick="toggleAnimateMode()">Animate: Off</button>
+            <button>Brush</button>
+            <button>Bucket</button>
+            <button>Select</button>
+            <button>Mirror</button>
+            <button id="zoomButton">Zoom 1x</button>
+            <button id="resetViewBtn" title="Reset view to fit canvas">&#10226; Fit</button>
+            <button id="animateToggle">Animate: Off</button>
         </div>
 
         <div id="selectControls">
-            <button id="dragBtn" onclick="setSelectionMode('drag')">Drag</button>
-            <button id="selectBtn" onclick="setSelectionMode('select')">Select</button>
-            <button id="moveBtn" onclick="setSelectionMode('move')">Move</button>
-            <button id="copyBtn" onclick="setSelectionMode('copy')">Duplicate</button>
-            <button id="deleteBtn" onclick="setSelectionMode('delete')">Delete</button>
+            <button id="dragBtn">Drag</button>
+            <button id="selectBtn">Select</button>
+            <button id="moveBtn">Move</button>
+            <button id="copyBtn">Duplicate</button>
+            <button id="deleteBtn">Delete</button>
         </div>
 
         <div id="canvasViewport">
@@ -140,45 +140,45 @@
 
         <div id="animationControls" style="display:none;">
             <span>Frame:</span>
-            <button onclick="prevFrame()">◀</button>
+            <button id="prevFrameBtn">&#9664;</button>
             <span id="frameDisplay">1 / 1</span>
-            <button onclick="nextFrame()">▶</button>
-            <button id="playStopBtn" onclick="togglePlayStop()">Play</button>
-            <button onclick="addFrame()">+ Add Frame</button>
-            <button onclick="deleteFrame()">Delete Frame</button>
-            <button onclick="duplicateFrame()">Duplicate</button>
+            <button id="nextFrameBtn">&#9654;</button>
+            <button id="playStopBtn">Play</button>
+            <button id="addFrameBtn">+ Add Frame</button>
+            <button id="deleteFrameBtn">Delete Frame</button>
+            <button id="duplicateFrameBtn">Duplicate</button>
         </div>
 
         <div id="saveControls">
-            <button id="savePngBtn" onclick="savePng()">Save PNG</button>
-            <button id="saveGifBtn" onclick="saveGif()" style="display:none;">Save GIF</button>
-            <button id="saveBinblockBtn" onclick="saveBinblock()">Save .binblock</button>
-            <button id="loadBinblockBtn" onclick="triggerBinblockLoad()">Load .binblock</button>
+            <button id="savePngBtn">Save PNG</button>
+            <button id="saveGifBtn" style="display:none;">Save GIF</button>
+            <button id="saveBinblockBtn">Save .binblock</button>
+            <button id="loadBinblockBtn">Load .binblock</button>
         </div>
-        <input id="binblockInput" type="file" accept=".binblock,.json" style="display:none;" onchange="handleBinblockFileChange(event)">
+        <input id="binblockInput" type="file" accept=".binblock,.json" style="display:none;">
     </div>
 
     <!-- RIGHT: Output -->
     <div id="outputArea">
         <div class="panel-header">
             <h2>Export</h2>
-            <button class="panel-toggle" onclick="toggleSidePanel('output')">Hide</button>
+            <button id="outputHideBtn" class="panel-toggle">Hide</button>
         </div>
 
         <pre id="exportBox"></pre>
 
         <div id="exportControls">
-            <button onclick="copyExport()">Copy All</button>
+            <button id="copyAllBtn">Copy All</button>
             <div id="splitButtons"></div>
             <div id="halfSplitControl">
                 <label>Rows per part
-                    <input type="range" id="halfRowsSlider" min="1" max="16" value="8" oninput="updateHalfRowsFromUI(this.value)">
+                    <input type="range" id="halfRowsSlider" min="1" max="16" value="8">
                     <span id="halfRowsLabel">8</span>
                 </label>
             </div>
         </div>
 
-        <div id="previewContainer" onclick="openPreviewModal()">
+        <div id="previewContainer">
             <div id="exportPreview"></div>
             <div id="previewBands"></div>
             <div id="partLegend"></div>
@@ -193,46 +193,46 @@
 </div>
 
 <!-- Side tags to restore panels -->
-<button id="paletteTag" class="edge-tag" onclick="toggleSidePanel('palette', false)">Palette ▶</button>
-<button id="exportTag" class="edge-tag" onclick="toggleSidePanel('output', false)">◀ Export</button>
+<button id="paletteTag" class="edge-tag">Palette &#9654;</button>
+<button id="exportTag" class="edge-tag">&#9664; Export</button>
 
 <!-- Settings Overlay -->
 <div id="settingsOverlay" style="display:none;">
     <div id="settingsPanel">
         <h3>Theme Settings</h3>
         <div class="settings-row">
-            <button onclick="applyThemePreset('defaultDark')">Default (Dark)</button>
-            <button onclick="applyThemePreset('defaultLight')">Default (Light)</button>
+            <button id="presetDefaultDark">Default (Dark)</button>
+            <button id="presetDefaultLight">Default (Light)</button>
         </div>
         <div class="settings-row">
-            <button onclick="applyThemePreset('ozy')">Ozy</button>
-            <button onclick="applyThemePreset('jack')">Jack</button>
+            <button id="presetOzy">Ozy</button>
+            <button id="presetJack">Jack</button>
         </div>
         <div class="settings-row">
-            <button onclick="applyThemePreset('slime')">Slime</button>
-            <button onclick="applyThemePreset('lava')">Lava</button>
+            <button id="presetSlime">Slime</button>
+            <button id="presetLava">Lava</button>
         </div>
         <div class="settings-row">
-            <label>Main background <input type="color" id="themeMainBg" oninput="saveThemeSettingsFromUI()"></label>
+            <label>Main background <input type="color" id="themeMainBg"></label>
         </div>
         <div class="settings-row">
-            <label>Side panel background <input type="color" id="themePanelBg" oninput="saveThemeSettingsFromUI()"></label>
+            <label>Side panel background <input type="color" id="themePanelBg"></label>
         </div>
         <div class="settings-row">
-            <label>Canvas area background <input type="color" id="themeCanvasBg" oninput="saveThemeSettingsFromUI()"></label>
+            <label>Canvas area background <input type="color" id="themeCanvasBg"></label>
         </div>
         <div class="settings-row">
-            <label>Grid background <input type="color" id="themeGridBg" oninput="saveThemeSettingsFromUI()"></label>
+            <label>Grid background <input type="color" id="themeGridBg"></label>
         </div>
         <div class="settings-row">
-            <label>Button background <input type="color" id="themeButtonBg" oninput="saveThemeSettingsFromUI()"></label>
+            <label>Button background <input type="color" id="themeButtonBg"></label>
         </div>
         <div class="settings-row">
-            <label>Button text color <input type="color" id="themeButtonText" oninput="saveThemeSettingsFromUI()"></label>
+            <label>Button text color <input type="color" id="themeButtonText"></label>
         </div>
         <div class="settings-actions">
-            <button onclick="resetThemeToDefaults()">Reset to defaults</button>
-            <button onclick="closeSettingsPanel()">Close</button>
+            <button id="resetThemeBtn">Reset to defaults</button>
+            <button id="closeSettingsBtn">Close</button>
         </div>
     </div>
 
@@ -322,7 +322,7 @@
         </div>
 
         <div class="settings-actions">
-            <button onclick="closeHelpPanel()">Close</button>
+            <button id="closeHelpBtn">Close</button>
         </div>
     </div>
 </div>
@@ -337,7 +337,7 @@
             <ul>
                 <li>GIMPORT (GIF import) reliability fixes – omggif fallback, safer frame decoding, and better error handling.</li>
                 <li>Smoother image and GIF imports with a "LOADING" overlay and clearer progress messages.</li>
-                <li>Renamed I–Mode to <strong>BIG IMAGE!</strong> (100x100) and G–Mode to <strong>IMAGE</strong> (50x50) to better match how they’re used.</li>
+                <li>Renamed I–Mode to <strong>BIG IMAGE!</strong> (100x100) and G–Mode to <strong>IMAGE</strong> (50x50) to better match how they're used.</li>
                 <li>Performance tweaks for large grids, including skipping heavy export previews for very big canvases.</li>
             </ul>
         </div>
@@ -355,7 +355,7 @@
                 <li>New canvas size presets including I–Mode and G–Mode for imports.</li>
                 <li>New canvas size presets including I-Mode and G-Mode for imports.</li>
                 <li>Drag controls (space to pan, drag sub-mode) for easier navigation.</li>
-                <li>This new 📜 changelog panel so you can see what changed.</li>
+                <li>This new &#128220; changelog panel so you can see what changed.</li>
             </ul>
         </div>
 
@@ -369,7 +369,7 @@
         </div>
 
         <div class="help-actions">
-            <button onclick="closeChangelog()">Close</button>
+            <button id="closeChangelogBtn">Close</button>
         </div>
     </div>
 </div>
@@ -379,7 +379,7 @@
     <div class="modal-panel">
         <div class="modal-header">
             <h3>Preview</h3>
-            <button onclick="closePreviewModal()">Close</button>
+            <button id="closePreviewBtn">Close</button>
         </div>
         <div id="previewModalContent"></div>
     </div>
@@ -388,7 +388,7 @@
 <div id="savingOverlay">
     <div class="saving-content">
         <div class="spinner"></div>
-        <p id="savingStatusText">Preparing…</p>
+        <p id="savingStatusText">Preparing&hellip;</p>
         <p id="savingSubtext"></p>
     </div>
 </div>
@@ -396,6 +396,14 @@
 <input type="file" id="importImageInput" accept="image/*" style="display:none">
 <input type="file" id="gimportInput" accept="image/gif,.gif" style="display:none">
 
-<script src="main.js"></script>
+<script type="importmap">
+{
+    "imports": {
+        "omggif": "https://unpkg.com/omggif@1.0.10/omggif.js",
+        "gif.js": "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"
+    }
+}
+</script>
+<script type="module" src="src/main.js"></script>
 </body>
 </html>
