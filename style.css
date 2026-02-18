@@ -1,3 +1,24 @@
+/* ── Theme custom properties ──────────────────────────────────────────────── */
+
+:root {
+    --color-main-bg: #080808;
+    --color-panel-bg: #1a1a1a;
+    --color-canvas-bg: #000000;
+    --color-grid-bg: #1a1a1a;
+    --color-btn-bg: #151515;
+    --color-btn-text: #00ff00;
+
+    /* Derived / secondary */
+    --color-text: #eee;
+    --color-border: #555;
+    --color-border-panel: #333;
+    --color-hover-bg: #262626;
+    --color-hover-border: #8f8;
+    --color-accent: #00ff00;
+    --color-surface: #111;
+    --color-surface-alt: #222;
+}
+
 /* Saving overlay */
 #savingOverlay {
     position: fixed;
@@ -9,57 +30,40 @@
     z-index: 10000;
 }
 
-/* Changelog overlay matches Help overlay */
-#changelogOverlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.75);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-#changelogPanel {
-    background: #1e1e1e;
-    border-radius: 8px;
-    padding: 20px;
-    width: min(720px, 90vw);
-    max-height: 80vh;
-    overflow-y: auto;
-}
+/* Old changelog/help overlay CSS removed - now uses <dialog> */
 
 #savingOverlay.active {
     display: flex;
 }
 
 .saving-content {
-    background: #111;
-    border: 1px solid #44ff44;
-    padding: 24px 32px;
-    border-radius: 8px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-accent);
+    padding: 1.2rem 1.6rem;
+    border-radius: 0.4rem;
     text-align: center;
     box-shadow: 0 0 12px rgba(0, 255, 0, 0.3);
 }
 
 .saving-content p {
-    margin-top: 12px;
-    font-size: 14px;
+    margin-top: 0.6rem;
+    font-size: 0.7rem;
     color: #aaffaa;
-    letter-spacing: 1px;
+    letter-spacing: 0.05rem;
 }
 
 #savingStatusText {
-    font-size: 18px;
+    font-size: 0.9rem;
     font-weight: bold;
     color: #d3ffd3;
-    margin-bottom: 6px;
+    margin-bottom: 0.3rem;
 }
 
 #savingSubtext {
-    font-size: 13px;
+    font-size: 0.65rem;
     color: #8fffc7;
-    min-height: 18px;
-    letter-spacing: 0.5px;
+    min-height: 0.9rem;
+    letter-spacing: 0.025rem;
 }
 
 .spinner {
@@ -80,73 +84,303 @@
         transform: rotate(360deg);
     }
 }
+html {
+    font-size: 20px;
+}
 body {
     margin: 0;
     padding: 0;
-    font-family: "Courier New", monospace;
-    background: #080808; /* slightly lighter than pure black */
-    color: #eee;
-}
-
-#selectControls {
-    display: none; /* JS shows this when Select tool is active */
-    margin: 10px auto 0;
-    justify-content: center;
-    gap: 10px;
-    max-width: 520px;
-}
-
-body.space-pan-mode #canvasViewport {
-    cursor: grab;
-}
-
-#canvasViewport.space-pan-grabbing {
-    cursor: grabbing;
-}
-
-#saveControls {
+    font-family: Menlo, Consolas, Monaco, "Adwaita Mono", "Liberation Mono", "Lucida Console", monospace;
+    font-size: 1rem;
+    background: var(--color-main-bg);
+    color: var(--color-text);
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
 }
 
-#selectControls button {
-    margin: 0 4px;
+/* ── Topbar ───────────────────────────────────────────────────────────────── */
+
+#topbar {
+    height: 1.6rem;
+    background: var(--color-panel-bg);
+    border-bottom: 1px solid var(--color-border-panel);
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    gap: 0;
+    font-size: 0.6rem;
+    user-select: none;
+    flex-shrink: 0;
 }
+
+#topbarTitle {
+    font-weight: bold;
+    color: var(--color-text);
+    margin-right: 0.8rem;
+    font-size: 0.65rem;
+    white-space: nowrap;
+}
+
+.topbar-version {
+    color: var(--color-accent);
+    font-weight: normal;
+    font-size: 0.55rem;
+}
+
+/* Menu containers */
+.topbar-menu {
+    position: relative;
+}
+
+.topbar-menu-label {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: var(--color-text);
+    font-family: inherit;
+    font-size: 0.6rem;
+    padding: 0.2rem 0.5rem;
+    margin: 0;
+    cursor: pointer;
+    text-transform: none;
+    border-radius: 3px;
+}
+
+.topbar-menu-label:hover,
+.topbar-menu-label.menu-open {
+    background: var(--color-hover-bg);
+    border: none;
+    box-shadow: none;
+    color: var(--color-text);
+}
+
+/* Dropdowns */
+.topbar-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 9rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-panel);
+    border-radius: 0 0 4px 4px;
+    padding: 0.2rem 0;
+    z-index: 10001;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.topbar-dropdown.open {
+    display: block;
+}
+
+.topbar-menu-item {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: var(--color-text);
+    font-family: inherit;
+    font-size: 0.6rem;
+    padding: 0.3rem 0.8rem;
+    margin: 0;
+    cursor: pointer;
+    text-align: left;
+    text-transform: none;
+    white-space: nowrap;
+}
+
+.topbar-menu-item:hover {
+    background: var(--color-hover-bg);
+    color: var(--color-accent);
+    border: none;
+    box-shadow: none;
+}
+
+.topbar-menu-item kbd {
+    float: right;
+    font-size: 0.5rem;
+    color: var(--color-border);
+    font-family: inherit;
+    margin-left: 1rem;
+}
+
+.topbar-menu-separator {
+    height: 1px;
+    background: var(--color-border-panel);
+    margin: 0.2rem 0.4rem;
+}
+
+/* ── Ribbon ───────────────────────────────────────────────────────────────── */
+
+#ribbon {
+    background: var(--color-panel-bg);
+    border-bottom: 1px solid var(--color-border-panel);
+    user-select: none;
+    flex-shrink: 0;
+}
+
+#ribbonTabs {
+    display: flex;
+    gap: 0;
+    padding: 0 0.5rem;
+    border-bottom: 1px solid var(--color-border-panel);
+}
+
+.ribbon-tab {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: var(--color-text);
+    font-family: inherit;
+    font-size: 0.55rem;
+    padding: 0.2rem 0.6rem;
+    margin: 0;
+    cursor: pointer;
+    text-transform: uppercase;
+    border-radius: 3px 3px 0 0;
+    opacity: 0.6;
+    transition: opacity 0.1s ease;
+}
+
+.ribbon-tab:hover {
+    opacity: 1;
+    background: var(--color-hover-bg);
+    border: none;
+    box-shadow: none;
+}
+
+.ribbon-tab.ribbon-tab-active {
+    opacity: 1;
+    background: var(--color-surface);
+    border-bottom: 2px solid var(--color-accent);
+    box-shadow: none;
+    color: var(--color-accent);
+}
+
+#ribbonContent {
+    padding: 0.3rem 0.5rem;
+}
+
+.ribbon-pane {
+    display: none;
+    align-items: stretch;
+    gap: 0;
+}
+
+.ribbon-pane.ribbon-pane-active {
+    display: flex;
+}
+
+.ribbon-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+}
+
+.ribbon-group-body {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-wrap: nowrap;
+}
+
+.ribbon-group-label {
+    font-size: 0.45rem;
+    color: var(--color-border);
+    text-transform: uppercase;
+    letter-spacing: 0.03rem;
+    text-align: center;
+}
+
+.ribbon-separator {
+    width: 1px;
+    align-self: stretch;
+    background: var(--color-border-panel);
+    margin: 0 0.4rem;
+}
+
+/* Ribbon buttons are more compact than regular buttons */
+.ribbon-group-body button {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.55rem;
+    margin: 1px;
+}
+
+.ribbon-group-body select {
+    padding: 0.15rem 0.3rem;
+    font-size: 0.55rem;
+    background: var(--color-btn-bg);
+    color: var(--color-btn-text);
+    border: 2px solid var(--color-border);
+    cursor: pointer;
+}
+
+.ribbon-group-body input[type="number"] {
+    padding: 0.15rem 0.2rem;
+    font-size: 0.55rem;
+    background: var(--color-btn-bg);
+    color: var(--color-btn-text);
+    border: 2px solid var(--color-border);
+    font-family: inherit;
+    width: 2.5rem;
+}
+
+/* #saveControls moved to topbar File menu */
+
+/* Selection buttons inside ribbon group use default button margins */
 
 .palette-item.palette-favorite::after {
     content: "★";
     position: absolute;
     top: 1px;
     right: 2px;
-    font-size: 20px;
+    font-size: 1rem;
     color: #ffd700;
     text-shadow: 0 0 1px #000, 0 0 2px #000;
     border: 1px solid #000;
 }
 
 body.light-mode {
-    background: #f5f5f5;
-    color: #111;
+    --color-main-bg: #f5f5f5;
+    --color-panel-bg: #ffffff;
+    --color-canvas-bg: #ffffff;
+    --color-grid-bg: #f0f0f0;
+    --color-btn-bg: #ffffff;
+    --color-btn-text: #0088ff;
+    --color-text: #111;
+    --color-border: #888;
+    --color-border-panel: #ccc;
+    --color-hover-bg: #f0f0f0;
+    --color-hover-border: #0088ff;
+    --color-accent: #0088ff;
+    --color-surface: #ffffff;
+    --color-surface-alt: #ffffff;
 }
 
 #app {
     display: flex;
-    min-height: 100vh;
+    flex: 1;
+    min-height: 0;
 }
 
-#palette, #canvasArea, #outputArea {
-    padding: 15px;
+#palette, #outputArea {
+    padding: 0.75rem;
+}
+
+#canvasArea {
+    padding: 0;
 }
 
 #palette {
     width: 20%;
-    background: #1a1a1a;
-    border-right: 2px solid #333;
-    position: sticky;
-    top: 0;
-    height: 100vh;
+    background: var(--color-panel-bg);
+    border-right: 2px solid var(--color-border-panel);
+    height: 100%;
     overflow-y: auto;
-    transition: opacity 0.2s ease, transform 0.2s ease;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -156,11 +390,11 @@ body.light-mode {
 }
 
 #canvasArea {
-    width: 50%;
+    flex: 1;
+    min-width: 0;
     text-align: center;
-    height: 100vh;
+    height: 100%;
     overflow: hidden;
-    transition: opacity 0.2s ease;
     scrollbar-width: none;
     -ms-overflow-style: none;
     box-sizing: border-box;
@@ -174,35 +408,23 @@ body.light-mode {
     display: none;
 }
 
-body.palette-hidden:not(.output-hidden) #canvasArea {
-    width: calc(50% + 20%);
+#pixiContainer {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
 }
 
-body.output-hidden:not(.palette-hidden) #canvasArea {
-    width: calc(50% + 30%);
-}
-
-body.palette-hidden #canvasArea,
-body.output-hidden #canvasArea {
-    margin: 0;
-    padding: 0;
-}
-
-body.freeform-mode #canvasArea {
-    width: 80%;
+#pixiContainer canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 body.freeform-mode #outputArea,
-body.freeform-mode #exportTag {
+body.freeform-mode #outputSidebarBar {
     display: none !important;
-}
-
-body.freeform-mode #randomControls {
-    display: none !important;
-}
-
-body.freeform-mode #brushSizeControls {
-    display: flex !important;
 }
 
 body.freeform-mode #importBtn,
@@ -210,21 +432,26 @@ body.freeform-mode #gimportBtn {
     display: none !important;
 }
 
+/* In freeform mode, show Brush group, hide Tools group */
+body.freeform-mode #ribbonToolsGroup {
+    display: none !important;
+}
+body.freeform-mode #ribbonBrushGroup {
+    display: flex !important;
+}
+
 .subtitle {
     font-size: 0.6em;
     font-weight: normal;
-    margin-left: 6px;
+    margin-left: 0.3rem;
 }
 
 #outputArea {
     width: 30%;
-    background: #1a1a1a;
-    border-left: 2px solid #333;
-    position: sticky;
-    top: 0;
-    height: 100vh;
+    background: var(--color-panel-bg);
+    border-left: 2px solid var(--color-border-panel);
+    height: 100%;
     overflow-y: auto;
-    transition: opacity 0.2s ease, transform 0.2s ease;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -233,20 +460,17 @@ body.freeform-mode #gimportBtn {
     display: none;
 }
 
-body.light-mode #palette,
-body.light-mode #canvasArea,
-body.light-mode #outputArea {
-    background: #ffffff;
-    border-color: #ccc;
-}
+/* light-mode panel overrides handled via custom properties on body.light-mode */
 
+button, select, textarea {
+    font-family: inherit;
+}
 button {
-    background: #151515;
-    color: #0f0;
-    border: 2px solid #555;
-    padding: 8px 14px;
-    font-family: "Courier New", monospace;
-    font-size: 13px;
+    background: var(--color-btn-bg);
+    color: var(--color-btn-text);
+    border: 2px solid var(--color-border);
+    padding: 0.4rem 0.7rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
     box-shadow: inset 0 0 6px #000, 0 0 4px #000;
     cursor: pointer;
@@ -254,48 +478,30 @@ button {
 }
 
 button:hover {
-    background: #262626;
-    border-color: #8f8;
+    background: var(--color-hover-bg);
+    border-color: var(--color-hover-border);
 }
 
-body.light-mode button {
-    background: #ffffff;
-    color: #0088ff;
-    border-color: #888;
-    box-shadow: inset 0 0 2px #ccc;
-}
+/* light-mode button overrides handled via custom properties on body.light-mode */
 
-body.light-mode button:hover {
-    background: #f0f0f0;
-    border-color: #0088ff;
-}
-
-#gridControls, #randomControls, #toolControls, #selectControls, #saveControls, #exportControls, #animationControls {
-    margin-top: 8px;
+#exportControls {
+    margin-top: 0.4rem;
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 0.3rem;
     justify-content: center;
     align-items: center;
-}
-
-#brushSizeControls {
-    margin-top: 12px;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
 }
 
 .brush-size-options {
     display: flex;
-    gap: 8px;
+    gap: 0.4rem;
 }
 
 .brush-size-btn {
-    border: 2px solid #555;
-    background: #111;
-    padding: 4px;
+    border: 2px solid var(--color-border);
+    background: var(--color-surface);
+    padding: 0.2rem;
     border-radius: 6px;
     cursor: pointer;
     display: flex;
@@ -305,12 +511,12 @@ body.light-mode button:hover {
 }
 
 .brush-size-btn:hover {
-    border-color: #8f8;
+    border-color: var(--color-hover-border);
     transform: translateY(-1px);
 }
 
 .brush-size-btn.brush-size-active {
-    border-color: #0f0;
+    border-color: var(--color-accent);
     box-shadow: 0 0 6px rgba(0, 255, 0, 0.5);
 }
 
@@ -345,48 +551,38 @@ body.light-mode button:hover {
     height: 26px;
 }
 
-#animationControls {
-    background: rgba(0, 100, 0, 0.2);
-    padding: 8px 12px;
-    border-radius: 6px;
-    border: 1px solid #0a0;
-}
-
-#animationControls span {
-    color: #0f0;
+/* Animation controls frame counter */
+#ribbonFrameGroup .ribbon-group-body span {
+    color: var(--color-accent);
     font-weight: bold;
 }
 
 #frameDisplay {
-    min-width: 60px;
+    min-width: 3rem;
     text-align: center;
 }
 
 .palette-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 6px;
+    gap: 0.3rem;
 }
 
 .palette-item {
-    width: 48px;
-    height: 48px;
-    background: #222;
-    border: 2px solid #555;
+    width: 2.4rem;
+    height: 2.4rem;
+    background: var(--color-surface-alt);
+    border: 2px solid var(--color-border);
     border-radius: 6px;
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 28px;
+    font-size: 1.4rem;
     position: relative;
 }
 
-body.light-mode .palette-item {
-    background: #ffffff;
-    border-color: #cccccc;
-    color: #0088ff;
-}
+/* light-mode palette overrides handled via custom properties on body.light-mode */
 
 .palette-item img {
     width: 90%;
@@ -394,201 +590,14 @@ body.light-mode .palette-item {
     object-fit: cover;
 }
 
-#canvasViewport {
-    margin-top: 15px;
-    display: block;
-    overflow: hidden;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    width: 100%;
-    flex: 1;
-    position: relative;
-    text-align: center;
-}
-
-#canvasViewport::-webkit-scrollbar {
-    display: none;
-}
-
-#canvasSurface {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    will-change: transform;
-    display: inline-block;
-}
-
-#canvasStack {
-    position: relative;
-    display: inline-block;
-    margin: 0;
-    background: #333;
-    padding: 8px;
-    border-radius: 4px;
-    transition: transform 0.2s ease;
-}
-
-#saveControls {
-    margin: 0;
-}
-
-#canvas {
-    display: inline-grid;
-    gap: 2px;
-    margin: 0;
-    background: transparent;
-    padding: 0;
-    position: relative;
-    z-index: 1;
-}
-
-#canvas.edit-mode {
-    box-shadow: 0 0 0 2px #ff0000;
-}
-
-#freeformLayer {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    display: none;
-    pointer-events: none;
-    background: transparent;
-    z-index: 3;
-}
-
-body.freeform-mode #freeformLayer {
-    display: block;
-    pointer-events: auto;
-}
-
-body.freeform-mode #canvas {
-    opacity: 0;
-    pointer-events: none;
-}
-
-/* Show brush size + shape controls only in Freeform mode */
-#brushSizeControls {
-    display: none;
-}
-
-body.freeform-mode #brushSizeControls {
-    display: flex !important;
-    align-items: center;
-    gap: 4px;
-}
-
-.freeform-stamp {
-    position: absolute;
-    width: 40px;
-    height: 40px;
-    background-size: cover;
-    background-position: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    color: #fff;
-    text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
-    pointer-events: none;
-}
-
-.freeform-stamp.selected {
-    outline: 2px solid #00ffff;
-    box-shadow: 0 0 8px rgba(0, 255, 255, 0.8);
-}
-
-#freeformSelectionBox {
-    position: absolute;
-    border: 2px dashed #00ffff;
-    pointer-events: none;
-    display: none;
-    z-index: 5;
-}
-
-/* Mode select styling */
-#modeSelect {
-    background: #151515;
-    color: #0f0;
-    border: 2px solid #555;
-    padding: 6px 10px;
-    font-family: "Courier New", monospace;
-    font-size: 12px;
-    cursor: pointer;
-}
-
-#modeSelect:hover {
-    border-color: #8f8;
-}
-
-#gridControls span {
-    color: #0f0;
-    font-weight: bold;
-    margin-left: 8px;
-}
-
-.canvas-cell {
-    width: 40px;
-    height: 40px;
-    border: 1px solid #555; /* clearer bin outline against #333 canvas */
-    cursor: pointer;
-    background-size: cover;
-    background-position: center;
-    font-size: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-}
-
-/* selection borders: orange when selecting, then mode-based colors */
-.canvas-cell.selected {
-    box-shadow: 0 0 0 2px #ffa500; /* orange for selection */
-}
-
-/* move: green border */
-#canvas[data-selection-mode="move"] .canvas-cell.selected {
-    box-shadow: 0 0 0 2px #00ff00;
-}
-
-/* copy/duplicate: blue border */
-#canvas[data-selection-mode="copy"] .canvas-cell.selected {
-    box-shadow: 0 0 0 2px #0088ff;
-}
-
-/* delete: red border */
-#canvas[data-selection-mode="delete"] .canvas-cell.selected {
-    box-shadow: 0 0 0 2px #ff0000;
-}
+/* #saveControls removed - moved to topbar File menu */
 
 /* Rainbow border for active items */
-#toolControls button.tool-active,
-#selectControls button.tool-active,
+.ribbon-group-body button.tool-active,
 .palette-item.active-brush {
     border: 3px solid;
     border-image: linear-gradient(45deg, #ff0040, #ffdd00, #00ff6a, #00c8ff, #a800ff, #ff0040) 1;
     transform: scale(1.1);
-}
-
-/* Selection border colors */
-.canvas-cell.selected {
-    box-shadow: 0 0 0 2px #ffa500; /* orange when selecting */
-}
-
-#canvas[data-selection-mode="move"] .canvas-cell.selected {
-    box-shadow: 0 0 0 2px #00ff00; /* green for move */
-}
-
-#canvas[data-selection-mode="copy"] .canvas-cell.selected {
-    box-shadow: 0 0 0 2px #0088ff; /* blue for copy */
-}
-
-#canvas[data-selection-mode="delete"] .canvas-cell.selected {
-    box-shadow: 0 0 0 2px #ff0000; /* red for delete */
-}
-
-body.light-mode .canvas-cell.selected {
-    box-shadow: 0 0 0 2px #ff0000;
 }
 
 .palette-item.active-brush {
@@ -603,32 +612,31 @@ body.light-mode .canvas-cell.selected {
 
 #exportBox {
     width: 100%;
-    min-height: 300px;
+    min-height: 15rem;
     height: auto;
-    background: #000;
-    color: #0f0;
-    padding: 10px;
-    font-family: monospace;
-    font-size: 14px;
+    background: var(--color-canvas-bg);
+    color: var(--color-accent);
+    padding: 0.5rem;
+    font-size: 0.7rem;
     white-space: pre;
 }
 
 #exportPreview {
     margin-top: 0;
     padding: 0;
-    background: #050505; /* match very dark gray instead of pure black */
-    border: 1px solid #333;
+    background: var(--color-canvas-bg);
+    border: 1px solid var(--color-border-panel);
     display: inline-block;
 }
 
 #previewContainer {
-    margin-top: 10px;
+    margin-top: 0.5rem;
     display: flex;
     align-items: flex-start;
 }
 
 #previewBands {
-    margin-left: 6px;
+    margin-left: 0.3rem;
     display: flex;
     flex-direction: column;
 }
@@ -639,99 +647,74 @@ body.light-mode .canvas-cell.selected {
 }
 
 #partLegend {
-    margin-left: 6px;
+    margin-left: 0.3rem;
     display: flex;
     flex-direction: column;
-    font-size: 11px;
+    font-size: 0.55rem;
 }
 
 #discordNote {
-    margin-top: 8px;
-    font-size: 10px;
+    margin-top: 0.4rem;
+    font-size: 0.5rem;
     color: #888;
     font-style: italic;
 }
 
 #discordPreview {
-    margin-top: 10px;
-    padding: 8px;
-    background: #000;
-    border: 1px solid #333;
-    color: #0f0;
-    font-family: monospace;
-    font-size: 12px;
+    margin-top: 0.5rem;
+    padding: 0.4rem;
+    background: var(--color-canvas-bg);
+    border: 1px solid var(--color-border-panel);
+    color: var(--color-accent);
+    font-size: 0.6rem;
     white-space: pre-wrap;
 }
 
-body.light-mode #exportPreview {
-    background: #ffffff;
-    border-color: #ccc;
-}
-
-body.light-mode #exportBox {
-    background: #f0f0f0;
-    color: #0088ff;
-}
-
-body.light-mode input,
-body.light-mode textarea {
-    background: #ffffff;
-    color: #0088ff;
-}
-
-body.light-mode .palette-item {
-    background: #ffffff;
-    border-color: #cccccc;
-    color: #0088ff;
-}
+/* light-mode overrides for export/input/palette handled via custom properties on body.light-mode */
 
 #exportCounters {
-    margin-bottom: 8px;
-    font-size: 11px;
+    margin-bottom: 0.4rem;
+    font-size: 0.55rem;
     color: #ffeb3b;
     text-align: center;
 }
 
 #tipsBox {
-    margin-top: 16px;
-    padding: 8px;
-    border: 1px dashed #555;
-    font-size: 11px;
+    margin-top: 0.8rem;
+    padding: 0.4rem;
+    border: 1px dashed var(--color-border);
+    font-size: 0.55rem;
 }
 
-body.light-mode #tipsBox {
-    border-color: #888;
-}
+/* light-mode tipsBox overrides handled via custom properties on body.light-mode */
 
 #tipsHint {
-    margin-top: 4px;
-    font-size: 11px;
+    margin-top: 0.2rem;
+    font-size: 0.55rem;
     color: #888;
 }
 
 .tip-item {
-    padding: 6px 8px;
-    margin-top: 4px;
-    font-size: 12px;
-    color: #eee;
+    padding: 0.3rem 0.4rem;
+    margin-top: 0.2rem;
+    font-size: 0.6rem;
+    color: var(--color-text);
 }
 
 .tip-item:nth-child(1) {
-    background: #111;
+    background: var(--color-surface);
 }
 .tip-item:nth-child(2) {
-    background: #151515;
+    background: var(--color-btn-bg);
 }
 .tip-item:nth-child(3) {
-    background: #181818;
+    background: var(--color-surface);
 }
 .tip-item:nth-child(4) {
-    background: #1b1b1b;
+    background: var(--color-panel-bg);
 }
 
-body.light-mode .tip-item {
-    color: #0088ff;
-}
+/* light-mode tip overrides handled via custom properties on body.light-mode */
 
 .export-row {
     display: flex;
@@ -746,38 +729,38 @@ body.light-mode .tip-item {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: 0.8rem;
 }
 
 .export-separator {
-    margin: 4px 0;
-    font-size: 10px;
+    margin: 0.2rem 0;
+    font-size: 0.5rem;
     color: #888;
     text-align: center;
 }
 
 /* Half-part slider styling */
 #halfSplitControl {
-    margin-top: 4px;
+    margin-top: 0.2rem;
     width: 100%;
-    font-size: 11px;
+    font-size: 0.55rem;
     text-align: center;
 }
 
 #halfSplitControl input[type="range"] {
     width: 100%;
     margin-top: 2px;
-    accent-color: #0f0;
+    accent-color: var(--color-accent);
 }
 
 #halfRowsLabel {
-    margin-left: 4px;
+    margin-left: 0.2rem;
     color: #ffeb3b;
 }
 
 /* Panel toggle + zoom buttons */
 #zoomButton {
-    min-width: 90px;
+    min-width: 4.5rem;
 }
 
 .panel-header {
@@ -787,101 +770,116 @@ body.light-mode .tip-item {
 }
 
 .panel-toggle {
-    font-size: 11px;
-    padding: 4px 8px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: var(--color-btn-text);
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+    margin: 0;
+    text-transform: none;
 }
 
-.panel-collapsed {
-    opacity: 0;
-    pointer-events: none;
+.panel-toggle:hover {
+    color: var(--color-hover-border);
+    background: transparent;
+    border: none;
+    box-shadow: none;
 }
 
-.edge-tag {
-    position: fixed;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 10px;
-    padding: 4px 8px;
-    z-index: 9998;
+/* Sidebar bars (shown when a panel is collapsed) */
+.sidebar-bar {
     display: none;
-}
-
-#paletteTag {
-    left: 0;
-}
-
-#exportTag {
-    right: 0;
-}
-
-#palette.panel-hidden,
-#outputArea.panel-hidden {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-}
-
-#palette.panel-hidden {
-    transform: translateX(-12px);
-}
-
-#outputArea.panel-hidden {
-    transform: translateX(12px);
-}
-
-/* When both panels are hidden, expand canvas area */
-body.panels-hidden #app {
-    justify-content: center;
-}
-
-body.panels-hidden #canvasArea {
-    width: 100%;
-    max-width: 100vw;
-    height: auto;
-    min-height: 100vh;
-    overflow: visible;
-    padding: 15px 20px 40px;
-}
-
-body.panels-hidden #canvasViewport {
-    min-height: calc(100vh - 150px);
-}
-
-/* Settings overlay */
-#settingsOverlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: none; /* JS switches this to flex when opened */
+    width: 20px;
     align-items: center;
     justify-content: center;
-    z-index: 9999;
+    background: var(--color-panel-bg);
+    cursor: pointer;
+    flex-shrink: 0;
 }
 
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.75);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 9998;
+.sidebar-bar-left {
+    border-right: 1px solid var(--color-border-panel);
 }
 
-.modal-panel {
-    background: #111;
-    border: 1px solid #444;
-    padding: 16px;
-    max-width: 80vw;
+.sidebar-bar-right {
+    border-left: 1px solid var(--color-border-panel);
+}
+
+.sidebar-bar-toggle {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: var(--color-btn-text);
+    font-size: 0.6rem;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    text-transform: none;
+    opacity: 0.5;
+    transition: opacity 0.15s ease;
+}
+
+.sidebar-bar:hover .sidebar-bar-toggle {
+    opacity: 1;
+}
+
+.sidebar-bar-toggle:hover {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+/* ── Dialogs ──────────────────────────────────────────────────────────────── */
+
+.app-dialog {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 0.4rem;
+    padding: 0;
+    max-width: 18rem;
     max-height: 80vh;
-    overflow: auto;
+    overflow-y: auto;
 }
 
-.modal-header {
+.app-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.app-dialog-wide {
+    max-width: min(32rem, 90vw);
+}
+
+.dialog-panel {
+    padding: 1rem;
+}
+
+.dialog-panel h3 {
+    margin: 0 0 0.8rem 0;
+    color: var(--color-accent);
+    font-size: 0.9rem;
+}
+
+.dialog-panel p {
+    font-size: 0.65rem;
+    line-height: 1.5;
+    margin: 0.4rem 0;
+}
+
+.dialog-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 0.6rem;
+}
+
+.dialog-actions {
+    margin-top: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
 }
 
 .copy-btn {
@@ -895,79 +893,97 @@ body.panels-hidden #canvasViewport {
     border-color: #2bd12b;
 }
 
-#settingsPanel {
-    background: #111;
-    border: 1px solid #555;
-    padding: 16px;
-    max-width: 320px;
-    color: #eee;
+/* Theme preset grid */
+.theme-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+    margin-bottom: 0.8rem;
+}
+
+.theme-preset-btn {
+    padding: 0.6rem 0.4rem;
+    border: 2px solid;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.6rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    text-align: center;
+    box-shadow: none;
+    margin: 0;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.theme-preset-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.theme-preset-btn.preset-active {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 2px;
+    transform: scale(1.05);
+}
+
+.theme-preset-name {
+    display: block;
+}
+
+/* Theme customize section */
+#themeCustomize {
+    margin-top: 0.4rem;
+    border: 1px solid var(--color-border-panel);
+    border-radius: 4px;
+    padding: 0;
+}
+
+#themeCustomize summary {
+    cursor: pointer;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.6rem;
+    color: var(--color-text);
+    user-select: none;
+}
+
+#themeCustomize summary:hover {
+    color: var(--color-accent);
+}
+
+.theme-custom-fields {
+    padding: 0.4rem 0.6rem 0.6rem;
 }
 
 .settings-row {
-    margin-top: 8px;
+    margin-top: 0.4rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
-    font-size: 12px;
-}
-
-.settings-actions {
-    margin-top: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-/* Help overlay */
-#helpOverlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.75);
-    display: none;
-    align-items: flex-start;
-    justify-content: center;
-    z-index: 9999;
-    overflow-y: auto;
-    padding: 40px 20px;
-}
-
-#helpPanel {
-    background: #111;
-    border: 1px solid #555;
-    padding: 20px;
-    max-width: 600px;
-    width: 100%;
-    color: #eee;
-}
-
-#helpPanel h3 {
-    margin: 0 0 16px 0;
-    color: #0f0;
-    font-size: 18px;
+    gap: 0.4rem;
+    font-size: 0.6rem;
 }
 
 .help-section {
-    margin-bottom: 16px;
+    margin-bottom: 0.8rem;
 }
 
 .help-section h4 {
-    margin: 0 0 8px 0;
-    color: #8f8;
-    font-size: 14px;
-    border-bottom: 1px solid #333;
-    padding-bottom: 4px;
+    margin: 0 0 0.4rem 0;
+    color: var(--color-hover-border);
+    font-size: 0.7rem;
+    border-bottom: 1px solid var(--color-border-panel);
+    padding-bottom: 0.2rem;
 }
 
 .help-section ul {
     margin: 0;
-    padding-left: 20px;
+    padding-left: 1rem;
     list-style: disc;
 }
 
 .help-section li {
-    margin-bottom: 4px;
-    font-size: 12px;
+    margin-bottom: 0.2rem;
+    font-size: 0.6rem;
     line-height: 1.4;
 }
 
@@ -975,26 +991,9 @@ body.panels-hidden #canvasViewport {
     color: #ff0;
 }
 
-#helpButton {
-    font-size: 14px;
-    padding: 4px 8px;
-    margin-left: 4px;
-}
-
-#warningButton {
-    font-size: 14px;
-    padding: 4px 8px;
-    margin-left: 4px;
-    background: #3d2800;
-    border-color: #8a5a00;
-}
-
-#warningButton:hover {
-    background: #4d3500;
-    border-color: #ffa500;
-}
+/* #helpButton and #warningButton moved to topbar View menu */
 
 #resetViewBtn {
-    font-size: 11px;
-    padding: 6px 10px;
+    font-size: 0.55rem;
+    padding: 0.3rem 0.5rem;
 }
