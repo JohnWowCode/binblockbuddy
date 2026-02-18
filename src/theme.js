@@ -56,6 +56,12 @@ function applyThemeSettings() {
     root.style.setProperty('--color-accent', accent);
     root.style.setProperty('--color-surface', isLight ? '#ffffff' : '#111');
     root.style.setProperty('--color-surface-alt', isLight ? '#ffffff' : '#222');
+
+    // Update PixiJS viewport background and grid line colors
+    if (state.viewport) {
+        state.viewport.updateBackground(state.themeSettings.canvasBg);
+        state.viewport.drawGridLines();
+    }
 }
 
 // ── Dialog helpers ───────────────────────────────────────────────────────────

@@ -6,8 +6,8 @@ import { getDefaultBrushCodeForPack } from './utils.js';
 
 // Module inits
 import { initPalette, renderPalette, setPaletteCallbacks, addToBrushHistory } from './palette.js';
-import { initCanvas, setCanvasCallbacks, renderGrid, generateGrid, ensureSpacePanHandlers, clampPanOffsets, autoFitZoom, updateRowsColsInputs, applyZoom } from './canvas.js';
-import { initTools, setToolCallbacks, setTool, setSelectionMode, bucketFill, mergeSelectionRects, renderGridWithPreview, handleSelectionActionAt } from './tools.js';
+import { initCanvas, setCanvasCallbacks, renderGrid, generateGrid, updateRowsColsInputs, wireViewportCallbacks } from './canvas.js';
+import { initTools, setToolCallbacks, setTool, setSelectionMode, bucketFill, mergeSelectionRects, handleSelectionActionAt } from './tools.js';
 import { initExport, updateExport } from './export.js';
 import { initHistory, setHistoryCallbacks } from './history.js';
 import { initTheme } from './theme.js';
@@ -18,6 +18,7 @@ import { initSerialization, setSerializationCallbacks } from './serialization.js
 import { initImport, setImportCallbacks } from './import.js';
 import { initTopbar } from './topbar.js';
 import { initRibbon } from './ribbon.js';
+import { Viewport } from './viewport.js';
 
 // ── Wire up cross-module callbacks ──────────────────────────────
 
@@ -34,14 +35,12 @@ setCanvasCallbacks({
     updateFreeformLayer,
     handleSelectionActionAt,
     mergeSelectionRects,
-    renderGridWithPreview,
 });
 
 setToolCallbacks({
     renderGrid,
     updateExport,
     updateFreeformLayer,
-    applyZoom,
 });
 
 setPaletteCallbacks({
@@ -91,6 +90,14 @@ initGenerators();
 initSerialization();
 initImport();
 
+// ── Initialize PixiJS viewport ──────────────────────────────────
+const container = document.getElementById('pixiContainer');
+if (container) {
+    const viewport = await Viewport.create(container);
+    state.viewport = viewport;
+    wireViewportCallbacks();
+}
+
 // ── Initial application state ───────────────────────────────────
 
 generateGrid();
@@ -104,8 +111,3 @@ if (defaultBrush) {
     state.activeBrush = defaultBrush;
     addToBrushHistory(defaultBrush);
 }
-
-// Initial canvas setup
-ensureSpacePanHandlers();
-setTimeout(() => clampPanOffsets(), 100);
-setTimeout(() => autoFitZoom(), 150);

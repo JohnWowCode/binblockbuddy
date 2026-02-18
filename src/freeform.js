@@ -28,6 +28,8 @@ export function updateCanvasModeUI() {
         btn.classList.toggle('active', state.canvasMode === 'freeform');
     }
 
+    state.viewport?.setFreeformMode(state.canvasMode === 'freeform');
+
     ensureFreeformLayerListeners();
     updateFreeformLayer();
 }
@@ -35,28 +37,16 @@ export function updateCanvasModeUI() {
 // ── Freeform Layer Listeners ─────────────────────────────────────────────────
 
 export function ensureFreeformLayerListeners() {
-    if (state.freeformLayerListenersAttached) return;
-    const layer = document.getElementById('freeformLayer');
-    if (!layer) return;
-
-    layer.addEventListener('pointerdown', handleFreeformPointerDown);
-    layer.addEventListener('pointermove', handleFreeformPointerMove);
-    layer.addEventListener('pointerleave', handleFreeformPointerUp);
-    window.addEventListener('pointerup', handleFreeformPointerUp);
-
-    state.freeformLayerListenersAttached = true;
+    // Freeform events are now handled by the viewport's pointer system
 }
 
 // ── Pointer Handlers ─────────────────────────────────────────────────────────
 
-function handleFreeformPointerDown(evt) {
+function handleFreeformPointerDown(worldPos, event) {
     if (state.canvasMode !== 'freeform') return;
-    const layer = document.getElementById('freeformLayer');
-    if (!layer) return;
 
     // Handle bucket tool in freeform mode - fill canvas with stamps
     if (state.currentTool === 'bucket') {
-        evt.preventDefault();
         if (!state.activeBrush) return;
         pushHistory();
         freeformBucketFill();
@@ -65,9 +55,6 @@ function handleFreeformPointerDown(evt) {
 
     if (state.currentTool !== 'brush') return;
 
-    evt.preventDefault();
-    layer.setPointerCapture?.(evt.pointerId);
-
     if (!state.freeformHistoryPushed) {
         pushHistory();
         state.freeformHistoryPushed = true;
@@ -75,7 +62,7 @@ function handleFreeformPointerDown(evt) {
 
     state.isFreeformPainting = true;
     state.lastFreeformPoint = null;
-    placeFreeformStamp(evt, { force: true });
+    placeFreeformStampAt(worldPos, { force: true });
 }
 
 function freeformBucketFill() {
@@ -105,22 +92,12 @@ function freeformBucketFill() {
     updateFreeformLayer();
 }
 
-function handleFreeformPointerMove(evt) {
+function handleFreeformPointerMove(worldPos, event) {
     if (!state.isFreeformPainting || state.canvasMode !== 'freeform') return;
-    evt.preventDefault();
-    placeFreeformStamp(evt);
+    placeFreeformStampAt(worldPos);
 }
 
-function handleFreeformPointerUp(evt) {
-    if (!state.isFreeformPainting) return;
-    const layer = document.getElementById('freeformLayer');
-    if (layer?.releasePointerCapture) {
-        try {
-            layer.releasePointerCapture(evt.pointerId);
-        } catch (err) {
-            // ignore release errors (pointer may not be captured)
-        }
-    }
+function handleFreeformPointerUp() {
     state.isFreeformPainting = false;
     state.lastFreeformPoint = null;
     state.freeformHistoryPushed = false;
@@ -128,23 +105,13 @@ function handleFreeformPointerUp(evt) {
 
 // ── Stamp Placement ──────────────────────────────────────────────────────────
 
-function placeFreeformStamp(evt, options = {}) {
+function placeFreeformStampAt(point, options = {}) {
     if (!state.activeBrush) return;
-    const layer = document.getElementById('freeformLayer');
-    if (!layer) return;
-
-    const rect = layer.getBoundingClientRect();
-    const point = {
-        x: (evt.clientX - rect.left) / state.currentZoomFactor,
-        y: (evt.clientY - rect.top) / state.currentZoomFactor
-    };
 
     if (!options.force && state.lastFreeformPoint) {
         const dx = point.x - state.lastFreeformPoint.x;
         const dy = point.y - state.lastFreeformPoint.y;
-        if (Math.hypot(dx, dy) < FREEFORM_DISTANCE_THRESHOLD) {
-            return;
-        }
+        if (Math.hypot(dx, dy) < FREEFORM_DISTANCE_THRESHOLD) return;
     }
 
     state.lastFreeformPoint = point;
@@ -155,7 +122,6 @@ function placeFreeformStamp(evt, options = {}) {
     const centerX = point.x - half;
     const centerY = point.y - half;
 
-    // Get brush offsets for current brush size
     const offsets = getBrushOffsets(state.currentBrushSizeIndex);
     const brushShapeEl = document.getElementById('brushShape');
     const shape = brushShapeEl ? brushShapeEl.value : 'square';
@@ -167,25 +133,20 @@ function placeFreeformStamp(evt, options = {}) {
         const stampX = clamp(centerX + offset.x, -TILE_SIZE, width);
         const stampY = clamp(centerY + offset.y, -TILE_SIZE, height);
 
-        const stamp = {
+        state.freeformStamps.push({
             id: ++state.freeformStampId,
-            x: stampX,
-            y: stampY,
+            x: stampX, y: stampY,
             item: { ...state.activeBrush }
-        };
-        state.freeformStamps.push(stamp);
+        });
 
-        // Mirror stamp if enabled
         if (state.mirrorEnabled) {
             const mirroredX = width - stampX - TILE_SIZE;
             if (Math.abs(mirroredX - stampX) > 1) {
-                const mirrorStamp = {
+                state.freeformStamps.push({
                     id: ++state.freeformStampId,
-                    x: mirroredX,
-                    y: stampY,
+                    x: mirroredX, y: stampY,
                     item: { ...state.activeBrush }
-                };
-                state.freeformStamps.push(mirrorStamp);
+                });
             }
         }
     }
@@ -223,15 +184,14 @@ export function addStampWithMirror(x, y, item) {
 // ── Canvas Point Helpers ─────────────────────────────────────────────────────
 
 export function getCanvasPointFromEvent(evt) {
-    const layer = document.getElementById('freeformLayer');
-    if (!layer) {
-        return { x: 0, y: 0 };
+    const vp = state.viewport;
+    if (vp?.gridInfo) {
+        const rect = vp.app.canvas.getBoundingClientRect();
+        const screenX = evt.clientX - rect.left;
+        const screenY = evt.clientY - rect.top;
+        return vp.screenToWorld(screenX, screenY);
     }
-    const rect = layer.getBoundingClientRect();
-    return {
-        x: (evt.clientX - rect.left) / state.currentZoomFactor,
-        y: (evt.clientY - rect.top) / state.currentZoomFactor
-    };
+    return { x: 0, y: 0 };
 }
 
 export function pointToCell(point) {
@@ -284,41 +244,14 @@ export function isShapePoint(x, y, cx, cy, shape, radius) {
 // ── Freeform Layer Rendering ─────────────────────────────────────────────────
 
 export function updateFreeformLayer() {
-    const layer = document.getElementById('freeformLayer');
-    if (!layer) return;
-    // Use tile-sized canvas dimensions so the clickable area matches stamp positions
-    const width = state.cols * TILE_SIZE;
-    const height = state.rows * TILE_SIZE;
-    layer.style.width = `${width}px`;
-    layer.style.height = `${height}px`;
-    layer.innerHTML = '';
-
-    if (state.canvasMode !== 'freeform') {
-        return;
-    }
-
-    for (const stamp of state.freeformStamps) {
-        const node = document.createElement('div');
-        node.className = 'freeform-stamp';
-        node.style.left = `${stamp.x}px`;
-        node.style.top = `${stamp.y}px`;
-
-        if (stamp.item.type === 'unicode') {
-            node.textContent = stamp.item.char || '';
-            node.style.backgroundImage = '';
-            node.style.backgroundColor = stamp.item.color || 'transparent';
-        } else if (stamp.item.type === 'img' && stamp.item.src) {
-            node.textContent = '';
-            node.style.backgroundImage = `url(${stamp.item.src})`;
-        } else if (stamp.item.color) {
-            node.textContent = '';
-            node.style.backgroundImage = '';
-            node.style.backgroundColor = stamp.item.color;
-        }
-
-        layer.appendChild(node);
+    if (state.viewport) {
+        state.viewport.updateFreeformLayer();
     }
 }
+
+// ── Exported freeform pointer handlers (used by viewport callback wiring) ────
+
+export { handleFreeformPointerDown, handleFreeformPointerMove, handleFreeformPointerUp };
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 

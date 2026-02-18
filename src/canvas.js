@@ -1,6 +1,7 @@
-import { state, TILE_SIZE, zoomLevels, DEFAULT_ROWS, DEFAULT_COLS, LAYOUT_STORAGE_KEY } from './state.js';
+import { state, DEFAULT_ROWS, DEFAULT_COLS, LAYOUT_STORAGE_KEY } from './state.js';
 import { getBackgroundItem } from './utils.js';
 import { pushHistory } from './history.js';
+import { handleFreeformPointerDown, handleFreeformPointerMove, handleFreeformPointerUp } from './freeform.js';
 
 // ── Callbacks (set by main to avoid circular imports) ────────────────────────
 
@@ -10,132 +11,31 @@ const callbacks = {
     updateFreeformLayer: null,
     handleSelectionActionAt: null,
     mergeSelectionRects: null,
-    renderGridWithPreview: null,
 };
 
 export function setCanvasCallbacks(cbs) {
     Object.assign(callbacks, cbs);
 }
 
-// ── Pan mode helpers ─────────────────────────────────────────────────────────
-
-export function isPanModeActive() {
-    return state.isSpacePanHeld || (state.currentTool === "select" && state.selectionMode === "drag");
-}
-
-export function refreshPanCursorState() {
-    const body = document.body;
-    if (!body) return;
-    body.classList.toggle("space-pan-mode", isPanModeActive());
-}
-
-// ── Canvas transform / zoom / pan ────────────────────────────────────────────
-
-export function updateCanvasTransform() {
-    const surface = document.getElementById("canvasSurface");
-    const stack = document.getElementById("canvasStack");
-    if (surface && stack) {
-        // Surface is positioned at left: 50%, so we translate it back by -50% plus pan offsets
-        // Pan is applied at screen level, zoom is applied to the stack
-        surface.style.transform = `translateX(calc(-50% + ${state.canvasPanX}px)) translateY(${state.canvasPanY}px)`;
-        stack.style.transformOrigin = "center center";
-        stack.style.transform = `scale(${state.currentZoomFactor})`;
-    }
-}
-
-export function clampPanOffsets() {
-    const viewport = document.getElementById("canvasViewport");
-    const stack = document.getElementById("canvasStack");
-    if (!viewport || !stack) {
-        updateCanvasTransform();
-        return;
-    }
-
-    const viewportRect = viewport.getBoundingClientRect();
-    const viewportWidth = viewportRect.width || viewport.clientWidth || 1;
-    const viewportHeight = viewportRect.height || viewport.clientHeight || 1;
-    const scaledWidth = stack.offsetWidth * state.currentZoomFactor;
-    const scaledHeight = stack.offsetHeight * state.currentZoomFactor;
-
-    if (!scaledWidth || !scaledHeight) {
-        updateCanvasTransform();
-        return;
-    }
-
-    // Horizontal: keep canvas roughly centered but allow movement.
-    if (scaledWidth <= viewportWidth) {
-        state.canvasPanX = 0;
-    } else {
-        const limitX = (scaledWidth - viewportWidth) / 2;
-        state.canvasPanX = Math.max(-limitX, Math.min(limitX, state.canvasPanX));
-    }
-
-    // Vertical: when zoomed out (<1x), don't clamp Y so you can freely pan
-    // to the bottom even if it means the canvas can move off-screen a bit.
-    // For 1x and above, keep a safe range so the canvas never fully vanishes.
-    if (state.currentZoomFactor >= 1) {
-        // Canvas top is at panY, bottom is at panY + scaledHeight.
-        // We want:
-        //   - top can be at 0  (see top rows under the header)
-        //   - bottom can be at viewportHeight (see very last rows)
-        if (scaledHeight <= viewportHeight) {
-            state.canvasPanY = 0;
-        } else {
-            const minPanY = viewportHeight - scaledHeight; // bottom exactly at viewport bottom
-            const maxPanY = 0;                             // top exactly under header
-            state.canvasPanY = Math.max(minPanY, Math.min(maxPanY, state.canvasPanY));
-        }
-    }
-
-    updateCanvasTransform();
-}
-
-export function applyZoom(options = {}) {
-    const viewport = document.getElementById("canvasViewport");
-    const stack = document.getElementById("canvasStack");
-    if (!viewport || !stack) return;
-
-    const factor = zoomLevels[state.zoomIndex] || 1;
-    state.currentZoomFactor = factor;
-
-    // Reset pan when zooming – start with top aligned to viewport
-    if (!options.skipCenter) {
-        state.canvasPanX = 0;
-        state.canvasPanY = 0;
-    }
-
-    updateCanvasTransform();
-    clampPanOffsets();
-}
+// ── Zoom helpers ─────────────────────────────────────────────────────────────
 
 export function updateZoomButtonLabel() {
     const btn = document.getElementById("zoomButton");
     if (btn) {
-        const factor = zoomLevels[state.zoomIndex] || 1;
-        btn.textContent = `Zoom ${factor.toFixed(2).replace(/\.00$/, "")}x`;
+        btn.textContent = `Fit`;
     }
 }
 
 export function cycleZoom() {
-    state.zoomIndex = (state.zoomIndex + 1) % zoomLevels.length;
-    updateZoomButtonLabel();
-    applyZoom();
+    state.viewport?.fitToView();
 }
 
 export function autoFitZoom() {
-    // For this app, "Fit" should behave like "back to default 1x"
-    const oneIndex = zoomLevels.indexOf(1);
-    state.zoomIndex = oneIndex >= 0 ? oneIndex : 0;
-    updateZoomButtonLabel();
-    applyZoom();
+    state.viewport?.fitToView();
 }
 
 export function resetView() {
-    // Reset pan to center
-    state.canvasPanX = 0;
-    state.canvasPanY = 0;
-    // Auto-fit zoom based on canvas size
-    autoFitZoom();
+    state.viewport?.fitToView();
 }
 
 // ── Rows / cols helpers ──────────────────────────────────────────────────────
@@ -184,9 +84,6 @@ export function generateGrid() {
 
     renderGrid();
     callbacks.updateExport?.();
-
-    // Ensure canvas transform is updated after grid size change
-    clampPanOffsets();
 }
 
 export function clearGrid() {
@@ -203,171 +100,9 @@ export function clearGrid() {
 }
 
 export function renderGrid() {
-    const canvas = document.getElementById("canvas");
-    canvas.style.gridTemplateColumns = `repeat(${state.cols}, 40px)`;
-    canvas.innerHTML = "";
-
-    // Use a fragment so we don't thrash the DOM with 10,000+ appends in I-Mode
-    const frag = document.createDocumentFragment();
-
-    canvas.onmousedown = () => {
-        state.isMouseDown = true;
-    };
-
-    if (!state.mouseListenersAttached) {
-        document.addEventListener("mouseup", () => {
-            state.isMouseDown = false;
-            state.isPainting = false;
-
-            // Apply move/copy/delete action when mouse is released
-            if (
-                state.isSelectingDrag &&
-                state.selection &&
-                state.selection.length &&
-                ["move", "copy", "delete"].includes(state.selectionMode) &&
-                state.dragTargetR !== undefined &&
-                state.dragTargetC !== undefined
-            ) {
-                callbacks.handleSelectionActionAt?.(state.dragTargetR, state.dragTargetC);
-            }
-
-            state.isSelectingDrag = false;
-            state.selectionStart = null;
-            state.moveHistoryPushed = false; // Reset history flag for next drag
-            state.dragTargetR = undefined;
-            state.dragTargetC = undefined;
-        });
-        document.addEventListener("mousemove", (evt) => {
-            if (!state.isSelectingDrag || state.currentTool !== "select" || !state.selectionStart) return;
-            const canvasRect = canvas.getBoundingClientRect();
-            const x = evt.clientX - canvasRect.left;
-            const y = evt.clientY - canvasRect.top;
-            const c = Math.floor(x / 42); // approx cell width incl gap
-            const r = Math.floor(y / 42);
-
-            // If we have a selection and are in move/copy/delete mode, show preview while dragging
-            if (state.selection && state.selection.length && ["move", "copy", "delete"].includes(state.selectionMode)) {
-                state.dragTargetR = r;
-                state.dragTargetC = c;
-                // Show preview without modifying actual grid
-                callbacks.renderGridWithPreview?.(r, c);
-            } else {
-                // Build selection rectangle
-                const top = Math.max(0, Math.min(state.selectionStart.r, r));
-                const bottom = Math.min(state.rows - 1, Math.max(state.selectionStart.r, r));
-                const left = Math.max(0, Math.min(state.selectionStart.c, c));
-                const right = Math.min(state.cols - 1, Math.max(state.selectionStart.c, c));
-
-                const newRect = { top, left, bottom, right };
-                if (state.selectionStart.ctrl) {
-                    // additive selection
-                    state.selection = callbacks.mergeSelectionRects?.(state.selection, newRect) ?? [newRect];
-                } else {
-                    state.selection = [newRect];
-                }
-                renderGrid();
-            }
-        });
-        state.mouseListenersAttached = true;
+    if (state.viewport) {
+        state.viewport.drawGrid().catch(err => console.error('drawGrid failed:', err));
     }
-
-    for (let r = 0; r < state.rows; r++) {
-        for (let c = 0; c < state.cols; c++) {
-            const cell = document.createElement("div");
-            cell.className = "canvas-cell";
-
-            const val = state.grid[r][c];
-            if (val) {
-                if (val.type === "unicode") {
-                    cell.textContent = val.char;
-                    cell.style.backgroundImage = "";
-                } else {
-                    cell.textContent = "";
-                    cell.style.backgroundImage = `url(${val.src})`;
-                    cell.style.backgroundSize = "cover";
-                }
-            }
-
-            // highlight any selected rects that include this cell
-            if (state.selection && state.selection.length) {
-                for (const rect of state.selection) {
-                    if (r >= rect.top && r <= rect.bottom && c >= rect.left && c <= rect.right) {
-                        cell.classList.add("selected");
-                        break;
-                    }
-                }
-            }
-
-            const paintCell = (fromDrag = false) => {
-                if (!state.activeBrush) return;
-                // Only push a new history state on the initial click, not on every drag cell
-                if (!fromDrag) {
-                    pushHistory();
-                }
-
-                const canvasEl = document.getElementById("canvas");
-
-                const applyBrushAt = (rr, cc) => {
-                    if (rr < 0 || rr >= state.rows || cc < 0 || cc >= state.cols) return;
-                    state.grid[rr][cc] = state.activeBrush;
-                    if (!canvasEl) return;
-                    const idx = rr * state.cols + cc;
-                    const cellEl = canvasEl.children[idx];
-                    if (!cellEl) return;
-                    if (state.activeBrush.type === "unicode") {
-                        cellEl.textContent = state.activeBrush.char;
-                        cellEl.style.backgroundImage = "";
-                    } else {
-                        cellEl.textContent = "";
-                        cellEl.style.backgroundImage = `url(${state.activeBrush.src})`;
-                        cellEl.style.backgroundSize = "cover";
-                    }
-                };
-
-                // main cell
-                applyBrushAt(r, c);
-
-                // mirrored cell horizontally if enabled
-                if (state.mirrorEnabled) {
-                    const mirrorC = state.cols - 1 - c;
-                    applyBrushAt(r, mirrorC);
-                }
-
-                callbacks.updateExport?.();
-            };
-
-            cell.onmousedown = (e) => {
-                e.preventDefault();
-                if (state.currentTool === "brush") {
-                    paintCell(false);
-                    state.isPainting = true;
-                } else if (state.currentTool === "bucket") {
-                    pushHistory();
-                    callbacks.bucketFill?.(r, c);
-                    renderGrid();
-                    callbacks.updateExport?.();
-                } else if (state.currentTool === "select") {
-                    if (!state.selectionStart) {
-                        // start a drag selection
-                        state.selectionStart = { r, c, ctrl: e.ctrlKey || e.metaKey };
-                        state.isSelectingDrag = true;
-                    }
-                }
-            };
-
-            cell.onmouseenter = () => {
-                if (state.isMouseDown && state.isPainting && state.currentTool === "brush") {
-                    paintCell(true);
-                }
-            };
-
-            frag.appendChild(cell);
-        }
-    }
-    canvas.appendChild(frag);
-
-    // Update canvas transform after grid is rendered to ensure proper sizing
-    setTimeout(() => updateCanvasTransform(), 10);
 }
 
 // ── Mode presets ─────────────────────────────────────────────────────────────
@@ -404,160 +139,8 @@ export function setMode(mode) {
 
     generateGrid();
 
-    // Reset pan and default zoom (1x) for all presets
-    state.canvasPanX = 0;
-    state.canvasPanY = 0;
-    const oneIndex = zoomLevels.indexOf(1);
-    state.zoomIndex = oneIndex >= 0 ? oneIndex : 0;
-    updateZoomButtonLabel();
-    // Use setTimeout to ensure DOM has updated with new grid size
-    setTimeout(() => {
-        applyZoom();
-    }, 50);
-}
-
-// ── Space-pan handlers ───────────────────────────────────────────────────────
-
-function shouldIgnoreSpacePanKey(target) {
-    if (!target) return false;
-    const tag = target.tagName?.toLowerCase();
-    return tag === "input" || tag === "textarea" || target.isContentEditable;
-}
-
-function handleSpacePanKeyDown(event) {
-    if (event.code !== "Space" || event.repeat) return;
-    if (shouldIgnoreSpacePanKey(event.target)) return;
-    event.preventDefault();
-    state.isSpacePanHeld = true;
-    document.body?.classList.add("space-pan-mode");
-    attachSpacePanViewportHandlers();
-}
-
-function handleSpacePanKeyUp(event) {
-    if (event.code !== "Space") return;
-    event.preventDefault();
-    state.isSpacePanHeld = false;
-    document.body?.classList.remove("space-pan-mode");
-    stopSpacePanDragging();
-}
-
-function handleSpacePanPointerDown(event) {
-    if (!isPanModeActive()) return;
-    const viewport = state.spacePanViewport || event.currentTarget;
-    if (!viewport) return;
-    event.preventDefault();
-    state.isSpacePanDragging = true;
-    state.spacePanPointerId = event.pointerId;
-    state.spacePanStart = {
-        x: event.clientX,
-        y: event.clientY,
-        panX: state.canvasPanX,
-        panY: state.canvasPanY
-    };
-    state.spacePanViewport = viewport;
-    viewport.classList.add("space-pan-grabbing");
-    viewport.setPointerCapture?.(event.pointerId);
-}
-
-function handleSpacePanPointerMove(event) {
-    if (!state.isSpacePanDragging || event.pointerId !== state.spacePanPointerId) return;
-    const viewport = state.spacePanViewport;
-    if (!viewport || !state.spacePanStart) return;
-    event.preventDefault();
-    const dx = event.clientX - state.spacePanStart.x;
-    const dy = event.clientY - state.spacePanStart.y;
-    // Update pan offsets - dragging right moves canvas right (positive X)
-    state.canvasPanX = state.spacePanStart.panX + dx;
-    state.canvasPanY = state.spacePanStart.panY + dy;
-    clampPanOffsets();
-}
-
-function handleSpacePanPointerUp(event) {
-    if (!state.isSpacePanDragging || event.pointerId !== state.spacePanPointerId) return;
-    stopSpacePanDragging();
-}
-
-function stopSpacePanDragging() {
-    const viewport = state.spacePanViewport;
-    if (viewport) {
-        viewport.classList.remove("space-pan-grabbing");
-        if (state.spacePanPointerId !== null && viewport.releasePointerCapture) {
-            try {
-                viewport.releasePointerCapture(state.spacePanPointerId);
-            } catch (err) {
-                // ignore release errors
-            }
-        }
-    }
-    state.isSpacePanDragging = false;
-    state.spacePanPointerId = null;
-    state.spacePanStart = null;
-}
-
-function resetSpacePanState() {
-    if (state.isSpacePanHeld || state.isSpacePanDragging) {
-        state.isSpacePanHeld = false;
-        document.body?.classList.remove("space-pan-mode");
-        stopSpacePanDragging();
-    }
-}
-
-function handleCanvasWheel(event) {
-    event.preventDefault();
-
-    // Ctrl+wheel = zoom
-    if (event.ctrlKey) {
-        if (event.deltaY > 0) {
-            // Scroll down = zoom out
-            if (state.zoomIndex < zoomLevels.length - 1) {
-                state.zoomIndex++;
-                updateZoomButtonLabel();
-                applyZoom({ skipCenter: true });
-            }
-        } else if (event.deltaY < 0) {
-            // Scroll up = zoom in
-            if (state.zoomIndex > 0) {
-                state.zoomIndex--;
-                updateZoomButtonLabel();
-                applyZoom({ skipCenter: true });
-            }
-        }
-        return;
-    }
-
-    // Shift+wheel = horizontal pan
-    if (event.shiftKey) {
-        state.canvasPanX -= event.deltaY * 0.8;
-        clampPanOffsets();
-        return;
-    }
-
-    // Regular wheel = vertical pan
-    if (event.deltaY !== 0) {
-        state.canvasPanY -= event.deltaY * 0.8;
-        clampPanOffsets();
-    }
-}
-
-function attachSpacePanViewportHandlers() {
-    const viewport = document.getElementById("canvasViewport");
-    if (!viewport || viewport.dataset.spacePanAttached === "true") return;
-    viewport.addEventListener("pointerdown", handleSpacePanPointerDown);
-    viewport.addEventListener("pointermove", handleSpacePanPointerMove);
-    viewport.addEventListener("pointerup", handleSpacePanPointerUp);
-    viewport.addEventListener("pointerleave", handleSpacePanPointerUp);
-    viewport.addEventListener("wheel", handleCanvasWheel, { passive: false });
-    viewport.dataset.spacePanAttached = "true";
-    state.spacePanViewport = viewport;
-}
-
-export function ensureSpacePanHandlers() {
-    if (state.spacePanHandlersAttached) return;
-    window.addEventListener("keydown", handleSpacePanKeyDown, true);
-    window.addEventListener("keyup", handleSpacePanKeyUp, true);
-    window.addEventListener("blur", resetSpacePanState, true);
-    attachSpacePanViewportHandlers();
-    state.spacePanHandlersAttached = true;
+    // Fit viewport after grid change
+    state.viewport?.fitToView();
 }
 
 // ── Panel visibility ─────────────────────────────────────────────────────────
@@ -576,7 +159,7 @@ export function toggleSidePanel(which, hide) {
 
     persistLayoutState();
     // Recenter canvas after panel visibility changes
-    setTimeout(() => clampPanOffsets(), 50);
+    setTimeout(() => state.viewport?.fitToView(), 50);
 }
 
 function persistLayoutState() {
@@ -599,6 +182,174 @@ function restoreLayoutState() {
     } catch (e) { /* ignore storage errors */ }
 }
 
+// ── Viewport tool wiring ─────────────────────────────────────────────────────
+
+export function wireViewportCallbacks() {
+    const vp = state.viewport;
+    if (!vp) return;
+
+    // ── Freeform callbacks ───────────────────────────────────────────────
+    vp.onFreeformDown = (e) => {
+        if (state.canvasMode !== 'freeform') return;
+        const worldPos = vp.screenToWorld(e.global.x, e.global.y);
+        handleFreeformPointerDown(worldPos, e.data?.originalEvent || e);
+    };
+
+    vp.onFreeformMove = (e) => {
+        if (state.canvasMode !== 'freeform') return;
+        const worldPos = vp.screenToWorld(e.global.x, e.global.y);
+        handleFreeformPointerMove(worldPos, e.data?.originalEvent || e);
+    };
+
+    vp.onFreeformUp = (e) => {
+        handleFreeformPointerUp();
+    };
+
+    // ── Grid callbacks ───────────────────────────────────────────────────
+    vp.onCellDown = (r, c, event) => {
+        state.isMouseDown = true;
+
+        if (state.currentTool === 'brush') {
+            pushHistory();
+            applyBrushAt(r, c);
+            state.isPainting = true;
+        } else if (state.currentTool === 'bucket') {
+            pushHistory();
+            callbacks.bucketFill?.(r, c);
+            renderGrid();
+            callbacks.updateExport?.();
+        } else if (state.currentTool === 'select') {
+            state.selectionStart = { r, c, ctrl: event.ctrlKey || event.metaKey };
+            state.isSelectingDrag = true;
+        }
+    };
+
+    vp.onCellEnter = (r, c) => {
+        if (state.isMouseDown && state.isPainting && state.currentTool === 'brush') {
+            applyBrushAt(r, c);
+        }
+        if (state.isSelectingDrag && state.currentTool === 'select') {
+            handleSelectionDrag(r, c);
+        }
+    };
+
+    vp.onPointerUp = (event) => {
+        if (
+            state.isSelectingDrag &&
+            state.selection?.length &&
+            ['move', 'copy', 'delete'].includes(state.selectionMode) &&
+            state.dragTargetR !== undefined
+        ) {
+            callbacks.handleSelectionActionAt?.(state.dragTargetR, state.dragTargetC);
+        }
+        state.isMouseDown = false;
+        state.isPainting = false;
+        state.isSelectingDrag = false;
+        state.selectionStart = null;
+        state.moveHistoryPushed = false;
+        state.dragTargetR = undefined;
+        state.dragTargetC = undefined;
+    };
+}
+
+function applyBrushAt(r, c) {
+    if (!state.activeBrush) return;
+    state.grid[r][c] = state.activeBrush;
+    state.viewport?.updateCell(r, c);
+
+    if (state.mirrorEnabled) {
+        const mirrorC = state.cols - 1 - c;
+        state.grid[r][mirrorC] = state.activeBrush;
+        state.viewport?.updateCell(r, mirrorC);
+    }
+
+    callbacks.updateExport?.();
+}
+
+function handleSelectionDrag(r, c) {
+    if (state.selection?.length && ['move', 'copy', 'delete'].includes(state.selectionMode)) {
+        // Dragging a selection to a new position
+        state.dragTargetR = r;
+        state.dragTargetC = c;
+        // Show preview by manipulating sprites directly
+        renderGridWithPreview(r, c);
+    } else {
+        // Building a selection rectangle
+        const top = Math.max(0, Math.min(state.selectionStart.r, r));
+        const bottom = Math.min(state.rows - 1, Math.max(state.selectionStart.r, r));
+        const left = Math.max(0, Math.min(state.selectionStart.c, c));
+        const right = Math.min(state.cols - 1, Math.max(state.selectionStart.c, c));
+
+        const newRect = { top, left, bottom, right };
+        if (state.selectionStart.ctrl) {
+            state.selection = callbacks.mergeSelectionRects?.(state.selection, newRect) ?? [newRect];
+        } else {
+            state.selection = [newRect];
+        }
+        // Redraw selection overlay without full grid rebuild
+        state.viewport?.drawSelection();
+    }
+}
+
+function renderGridWithPreview(previewR, previewC) {
+    const vp = state.viewport;
+    if (!vp || !state.selection?.length) return;
+
+    // Reset all cell sprites to their actual state (texture + alpha=1)
+    for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+            const sprite = vp.cellSprites.get(`${r},${c}`);
+            if (sprite) {
+                const item = state.grid[r]?.[c];
+                sprite.texture = vp.getTextureForItemCached(item);
+                sprite.alpha = 1;
+            }
+        }
+    }
+
+    const top = Math.min(...state.selection.map(s => s.top));
+    const left = Math.min(...state.selection.map(s => s.left));
+    const bottom = Math.max(...state.selection.map(s => s.bottom));
+    const right = Math.max(...state.selection.map(s => s.right));
+    const h = bottom - top + 1;
+    const w = right - left + 1;
+
+    const adjustedR = Math.max(0, Math.min(previewR - Math.floor(h / 2), state.rows - h));
+    const adjustedC = Math.max(0, Math.min(previewC - Math.floor(w / 2), state.cols - w));
+
+    // If move mode, show background at original position
+    if (state.selectionMode === 'move') {
+        for (const rect of state.selection) {
+            for (let rr = rect.top; rr <= rect.bottom; rr++) {
+                for (let cc = rect.left; cc <= rect.right; cc++) {
+                    const sprite = vp.cellSprites.get(`${rr},${cc}`);
+                    if (sprite) {
+                        sprite.texture = vp.getTextureForItemCached(getBackgroundItem());
+                    }
+                }
+            }
+        }
+    }
+
+    // Show preview content at destination
+    for (let i = 0; i < h; i++) {
+        for (let j = 0; j < w; j++) {
+            const destR = adjustedR + i;
+            const destC = adjustedC + j;
+            const sourceR = top + i;
+            const sourceC = left + j;
+            const sprite = vp.cellSprites.get(`${destR},${destC}`);
+            if (sprite) {
+                const item = state.grid[sourceR]?.[sourceC];
+                sprite.texture = vp.getTextureForItemCached(item);
+                sprite.alpha = 0.7;
+            }
+        }
+    }
+
+    vp.drawSelection();
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 
 export function initCanvas() {
@@ -610,11 +361,11 @@ export function initCanvas() {
     // Clear button
     document.getElementById('clearBtn')?.addEventListener('click', clearGrid);
 
-    // Zoom button
-    document.getElementById('zoomButton')?.addEventListener('click', cycleZoom);
+    // Zoom button — fit to view
+    document.getElementById('zoomButton')?.addEventListener('click', () => state.viewport?.fitToView());
 
-    // Fit button
-    document.getElementById('resetViewBtn')?.addEventListener('click', resetView);
+    // Fit button — fit to view
+    document.getElementById('resetViewBtn')?.addEventListener('click', () => state.viewport?.fitToView());
 
     // Row/col inputs
     const rowsInput = document.getElementById('rowsInput');
@@ -637,7 +388,4 @@ export function initCanvas() {
 
     // Restore saved layout state
     restoreLayoutState();
-
-    // Space pan handlers
-    ensureSpacePanHandlers();
 }

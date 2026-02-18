@@ -10,8 +10,6 @@ export const MAX_IMPORT_SIZE = 100;
 export const DEFAULT_ROWS = 4;
 export const DEFAULT_COLS = 7;
 
-export const zoomLevels = [1, 0.75, 0.5, 0.35, 0.25, 0.15, 0.1, 0.05];
-
 export const brushSizeRadii = [0, 1, 1.5, 2.2, 3.2];
 
 export const bandColors = [
@@ -138,15 +136,9 @@ export const state = {
     selectionStart: null,
     isSelectingDrag: false,
 
-    mouseListenersAttached: false,
     clipboardSelection: null,
 
     canvasMode: "grid",
-    zoomIndex: 0,
-    currentZoomFactor: 1,
-
-    canvasPanX: 0,
-    canvasPanY: 0,
 
     history: [],
     future: [],
@@ -167,7 +159,6 @@ export const state = {
     isFreeformPainting: false,
     lastFreeformPoint: null,
 
-    freeformLayerListenersAttached: false,
     freeformHistoryPushed: false,
 
     currentBrushSizeIndex: 2,
@@ -182,14 +173,6 @@ export const state = {
 
     freeformSelectionSnapshot: null,
     freeformSelectionRect: null,
-
-    spacePanHandlersAttached: false,
-    isSpacePanHeld: false,
-    isSpacePanDragging: false,
-
-    spacePanStart: null,
-    spacePanPointerId: null,
-    spacePanViewport: null,
 
     currentAssetPack: "legacy",
 
@@ -211,5 +194,7 @@ export const state = {
     omggifLoadingPromise: null,
     gifJsPromise: null,
 
-    imageElementCache: new Map()
+    imageElementCache: new Map(),
+
+    viewport: null
 };

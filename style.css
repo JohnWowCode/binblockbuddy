@@ -329,14 +329,6 @@ body {
     width: 2.5rem;
 }
 
-body.space-pan-mode #canvasViewport {
-    cursor: grab;
-}
-
-#canvasViewport.space-pan-grabbing {
-    cursor: grabbing;
-}
-
 /* #saveControls moved to topbar File menu */
 
 /* Selection buttons inside ribbon group use default button margins */
@@ -414,6 +406,20 @@ body.light-mode {
 
 #canvasArea::-webkit-scrollbar {
     display: none;
+}
+
+#pixiContainer {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+#pixiContainer canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 body.freeform-mode #outputArea,
@@ -584,144 +590,7 @@ button:hover {
     object-fit: cover;
 }
 
-#canvasViewport {
-    margin-top: 0;
-    display: block;
-    overflow: hidden;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    width: 100%;
-    flex: 1;
-    position: relative;
-    text-align: center;
-}
-
-#canvasViewport::-webkit-scrollbar {
-    display: none;
-}
-
-#canvasSurface {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    will-change: transform;
-    display: inline-block;
-}
-
-#canvasStack {
-    position: relative;
-    display: inline-block;
-    margin: 0;
-    background: var(--color-grid-bg);
-    padding: 0.4rem;
-    border-radius: 4px;
-    transition: transform 0.2s ease;
-}
-
 /* #saveControls removed - moved to topbar File menu */
-
-#canvas {
-    display: inline-grid;
-    gap: 2px;
-    margin: 0;
-    background: transparent;
-    padding: 0;
-    position: relative;
-    z-index: 1;
-}
-
-#canvas.edit-mode {
-    box-shadow: 0 0 0 2px #ff0000;
-}
-
-#freeformLayer {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    display: none;
-    pointer-events: none;
-    background: transparent;
-    z-index: 3;
-}
-
-body.freeform-mode #freeformLayer {
-    display: block;
-    pointer-events: auto;
-}
-
-body.freeform-mode #canvas {
-    opacity: 0;
-    pointer-events: none;
-}
-
-/* Brush group visibility handled via body.freeform-mode #ribbonBrushGroup / #ribbonToolsGroup rules */
-
-.freeform-stamp {
-    position: absolute;
-    width: 40px;
-    height: 40px;
-    background-size: cover;
-    background-position: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.4rem;
-    color: #fff;
-    text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
-    pointer-events: none;
-}
-
-.freeform-stamp.selected {
-    outline: 2px solid #00ffff;
-    box-shadow: 0 0 8px rgba(0, 255, 255, 0.8);
-}
-
-#freeformSelectionBox {
-    position: absolute;
-    border: 2px dashed #00ffff;
-    pointer-events: none;
-    display: none;
-    z-index: 5;
-}
-
-/* #modeSelect styling now handled by .ribbon-group-body select */
-
-/* Grid row/col labels now inherit from ribbon-group-body */
-
-.canvas-cell {
-    width: 40px;
-    height: 40px;
-    border: 1px solid var(--color-border);
-    cursor: pointer;
-    background-size: cover;
-    background-position: center;
-    font-size: 1.2rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-}
-
-/* selection borders: orange when selecting, then mode-based colors */
-.canvas-cell.selected {
-    box-shadow: 0 0 0 2px #ffa500; /* orange for selection */
-}
-
-/* move: green border */
-#canvas[data-selection-mode="move"] .canvas-cell.selected {
-    box-shadow: 0 0 0 2px #00ff00;
-}
-
-/* copy/duplicate: blue border */
-#canvas[data-selection-mode="copy"] .canvas-cell.selected {
-    box-shadow: 0 0 0 2px #0088ff;
-}
-
-/* delete: red border */
-#canvas[data-selection-mode="delete"] .canvas-cell.selected {
-    box-shadow: 0 0 0 2px #ff0000;
-}
 
 /* Rainbow border for active items */
 .ribbon-group-body button.tool-active,
@@ -729,28 +598,6 @@ body.freeform-mode #canvas {
     border: 3px solid;
     border-image: linear-gradient(45deg, #ff0040, #ffdd00, #00ff6a, #00c8ff, #a800ff, #ff0040) 1;
     transform: scale(1.1);
-}
-
-/* Selection border colors */
-.canvas-cell.selected {
-    box-shadow: 0 0 0 2px #ffa500; /* orange when selecting */
-}
-
-#canvas[data-selection-mode="move"] .canvas-cell.selected {
-    box-shadow: 0 0 0 2px #00ff00; /* green for move */
-}
-
-#canvas[data-selection-mode="copy"] .canvas-cell.selected {
-    box-shadow: 0 0 0 2px #0088ff; /* blue for copy */
-}
-
-#canvas[data-selection-mode="delete"] .canvas-cell.selected {
-    box-shadow: 0 0 0 2px #ff0000; /* red for delete */
-}
-
-/* light-mode selection overrides - keep red for visibility regardless of theme */
-body.light-mode .canvas-cell.selected {
-    box-shadow: 0 0 0 2px #ff0000;
 }
 
 .palette-item.active-brush {
