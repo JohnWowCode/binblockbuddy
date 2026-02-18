@@ -24,27 +24,13 @@ function persistThemeSettings() {
 // ── Theme application ────────────────────────────────────────────────────────
 
 function applyThemeSettings() {
-    const body = document.body;
-    if (body) {
-        body.style.backgroundColor = state.themeSettings.mainBg;
-    }
-
-    const paletteEl = document.getElementById("palette");
-    const outputEl = document.getElementById("outputArea");
-    if (paletteEl) paletteEl.style.backgroundColor = state.themeSettings.panelBg;
-    if (outputEl) outputEl.style.backgroundColor = state.themeSettings.panelBg;
-
-    const exportPreview = document.getElementById("exportPreview");
-    if (exportPreview) exportPreview.style.backgroundColor = state.themeSettings.canvasBg;
-
-    const canvasStack = document.getElementById("canvasStack");
-    if (canvasStack) canvasStack.style.backgroundColor = state.themeSettings.gridBg;
-
-    const buttons = document.querySelectorAll("button");
-    buttons.forEach((btn) => {
-        btn.style.backgroundColor = state.themeSettings.buttonBg;
-        btn.style.color = state.themeSettings.buttonText;
-    });
+    const root = document.documentElement;
+    root.style.setProperty('--color-main-bg', state.themeSettings.mainBg);
+    root.style.setProperty('--color-panel-bg', state.themeSettings.panelBg);
+    root.style.setProperty('--color-canvas-bg', state.themeSettings.canvasBg);
+    root.style.setProperty('--color-grid-bg', state.themeSettings.gridBg);
+    root.style.setProperty('--color-btn-bg', state.themeSettings.buttonBg);
+    root.style.setProperty('--color-btn-text', state.themeSettings.buttonText);
 }
 
 // ── Overlay panels ───────────────────────────────────────────────────────────
