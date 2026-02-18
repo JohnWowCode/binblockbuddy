@@ -16,6 +16,8 @@ import { initFreeform, updateFreeformLayer, updateCanvasModeUI } from './freefor
 import { initGenerators, setGeneratorCallbacks } from './generators.js';
 import { initSerialization, setSerializationCallbacks } from './serialization.js';
 import { initImport, setImportCallbacks } from './import.js';
+import { initTopbar } from './topbar.js';
+import { initRibbon } from './ribbon.js';
 
 // ── Wire up cross-module callbacks ──────────────────────────────
 
@@ -75,6 +77,8 @@ setAnimationCallbacks({
 
 // ── Initialize all modules (binds event listeners) ──────────────
 
+initTopbar();
+initRibbon();
 initTheme();
 initPalette();
 initCanvas();

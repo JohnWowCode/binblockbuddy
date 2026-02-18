@@ -4,6 +4,7 @@ export const TILE_SIZE = 40;
 export const BINBLOCK_VERSION = 1;
 export const FREEFORM_DISTANCE_THRESHOLD = TILE_SIZE / 2;
 export const ASSET_PACK_STORAGE_KEY = "binblockbuddy.assetPack";
+export const LAYOUT_STORAGE_KEY = "binblockbuddy.layout";
 export const MAX_FRAMES = 200;
 export const MAX_IMPORT_SIZE = 100;
 export const DEFAULT_ROWS = 4;
@@ -193,6 +194,7 @@ export const state = {
     currentAssetPack: "legacy",
 
     themeSettings: { ...themeDefaults },
+    activeThemePreset: "defaultDark",
 
     exportChunks: [],
     exportHalfChunks: [],

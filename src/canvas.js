@@ -1,4 +1,4 @@
-import { state, TILE_SIZE, zoomLevels, DEFAULT_ROWS, DEFAULT_COLS } from './state.js';
+import { state, TILE_SIZE, zoomLevels, DEFAULT_ROWS, DEFAULT_COLS, LAYOUT_STORAGE_KEY } from './state.js';
 import { getBackgroundItem } from './utils.js';
 import { pushHistory } from './history.js';
 
@@ -564,38 +564,39 @@ export function ensureSpacePanHandlers() {
 
 export function toggleSidePanel(which, hide) {
     const isPalette = which === "palette";
-    const panel = isPalette ? document.getElementById("palette") : document.getElementById("outputArea");
-    const tag = isPalette ? document.getElementById("paletteTag") : document.getElementById("exportTag");
-    if (!panel || !tag) return;
+    const panel = document.getElementById(isPalette ? "palette" : "outputArea");
+    const bar = document.getElementById(isPalette ? "paletteSidebarBar" : "outputSidebarBar");
+    if (!panel || !bar) return;
 
-    const currentlyHidden = panel.classList.contains("panel-hidden");
-    let shouldHide = hide;
-    if (typeof shouldHide !== "boolean") {
-        shouldHide = !currentlyHidden;
-    }
+    const currentlyHidden = panel.style.display === "none";
+    const shouldHide = typeof hide === "boolean" ? hide : !currentlyHidden;
 
-    if (shouldHide) {
-        panel.classList.add("panel-hidden");
-        tag.style.display = "block";
-    } else {
-        panel.classList.remove("panel-hidden");
-        tag.style.display = "none";
-    }
+    panel.style.display = shouldHide ? "none" : "";
+    bar.style.display = shouldHide ? "flex" : "none";
 
-    updatePanelVisibilityState();
-}
-
-function updatePanelVisibilityState() {
-    const paletteHidden = document.getElementById("palette")?.classList.contains("panel-hidden");
-    const outputHidden = document.getElementById("outputArea")?.classList.contains("panel-hidden");
-    const body = document.body;
-    if (!body) return;
-    const lockCanvas = paletteHidden && outputHidden;
-    body.classList.toggle("palette-hidden", !!paletteHidden);
-    body.classList.toggle("output-hidden", !!outputHidden);
-    body.classList.toggle("panels-hidden", !!lockCanvas);
+    persistLayoutState();
     // Recenter canvas after panel visibility changes
     setTimeout(() => clampPanOffsets(), 50);
+}
+
+function persistLayoutState() {
+    const layout = {
+        paletteHidden: document.getElementById("palette")?.style.display === "none",
+        outputHidden: document.getElementById("outputArea")?.style.display === "none",
+    };
+    try {
+        localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(layout));
+    } catch (e) { /* ignore storage errors */ }
+}
+
+function restoreLayoutState() {
+    try {
+        const raw = localStorage.getItem(LAYOUT_STORAGE_KEY);
+        if (!raw) return;
+        const layout = JSON.parse(raw);
+        if (layout.paletteHidden) toggleSidePanel("palette", true);
+        if (layout.outputHidden) toggleSidePanel("output", true);
+    } catch (e) { /* ignore storage errors */ }
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
@@ -627,14 +628,15 @@ export function initCanvas() {
     // Panel toggles
     document.getElementById('paletteHideBtn')?.addEventListener('click', () => toggleSidePanel('palette'));
     document.getElementById('outputHideBtn')?.addEventListener('click', () => toggleSidePanel('output'));
-    document.getElementById('paletteTag')?.addEventListener('click', () => toggleSidePanel('palette', false));
-    document.getElementById('exportTag')?.addEventListener('click', () => toggleSidePanel('output', false));
 
-    // Initially hide edge tags
-    const paletteTag = document.getElementById('paletteTag');
-    const exportTag = document.getElementById('exportTag');
-    if (paletteTag) paletteTag.style.display = 'none';
-    if (exportTag) exportTag.style.display = 'none';
+    // Sidebar bars (click anywhere on the bar to expand)
+    const paletteSidebarBar = document.getElementById('paletteSidebarBar');
+    const outputSidebarBar = document.getElementById('outputSidebarBar');
+    paletteSidebarBar?.addEventListener('click', () => toggleSidePanel('palette', false));
+    outputSidebarBar?.addEventListener('click', () => toggleSidePanel('output', false));
+
+    // Restore saved layout state
+    restoreLayoutState();
 
     // Space pan handlers
     ensureSpacePanHandlers();

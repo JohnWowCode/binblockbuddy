@@ -8,6 +8,9 @@ function loadThemeSettings() {
         if (!raw) return;
         const parsed = JSON.parse(raw);
         state.themeSettings = { ...themeDefaults, ...parsed };
+        if ('activePreset' in parsed) {
+            state.activeThemePreset = parsed.activePreset;
+        }
     } catch (e) {
         state.themeSettings = { ...themeDefaults };
     }
@@ -15,13 +18,23 @@ function loadThemeSettings() {
 
 function persistThemeSettings() {
     try {
-        localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(state.themeSettings));
+        const data = { ...state.themeSettings, activePreset: state.activeThemePreset };
+        localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
         // ignore storage errors
     }
 }
 
 // ── Theme application ────────────────────────────────────────────────────────
+
+function hexLuminance(hex) {
+    // Parse hex color and return relative luminance (0 = black, 1 = white)
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16) / 255;
+    const g = parseInt(h.substring(2, 4), 16) / 255;
+    const b = parseInt(h.substring(4, 6), 16) / 255;
+    return 0.299 * r + 0.587 * g + 0.114 * b;
+}
 
 function applyThemeSettings() {
     const root = document.documentElement;
@@ -31,14 +44,41 @@ function applyThemeSettings() {
     root.style.setProperty('--color-grid-bg', state.themeSettings.gridBg);
     root.style.setProperty('--color-btn-bg', state.themeSettings.buttonBg);
     root.style.setProperty('--color-btn-text', state.themeSettings.buttonText);
+
+    // Derive light/dark secondary variables from the background luminance
+    const isLight = hexLuminance(state.themeSettings.mainBg) > 0.45;
+    const accent = state.themeSettings.buttonText;
+    root.style.setProperty('--color-text', isLight ? '#111' : '#eee');
+    root.style.setProperty('--color-border', isLight ? '#888' : '#555');
+    root.style.setProperty('--color-border-panel', isLight ? '#ccc' : '#333');
+    root.style.setProperty('--color-hover-bg', isLight ? '#f0f0f0' : '#262626');
+    root.style.setProperty('--color-hover-border', accent);
+    root.style.setProperty('--color-accent', accent);
+    root.style.setProperty('--color-surface', isLight ? '#ffffff' : '#111');
+    root.style.setProperty('--color-surface-alt', isLight ? '#ffffff' : '#222');
 }
 
-// ── Overlay panels ───────────────────────────────────────────────────────────
+// ── Dialog helpers ───────────────────────────────────────────────────────────
+
+function openDialog(id) {
+    const dialog = document.getElementById(id);
+    if (dialog && !dialog.open) dialog.showModal();
+}
+
+function closeDialog(id) {
+    const dialog = document.getElementById(id);
+    if (dialog && dialog.open) dialog.close();
+}
+
+function updatePresetHighlight() {
+    document.querySelectorAll('.theme-preset-btn').forEach(btn => {
+        const isActive = btn.dataset.preset === state.activeThemePreset;
+        btn.classList.toggle('preset-active', isActive);
+    });
+}
 
 function openSettingsPanel() {
-    const overlay = document.getElementById("settingsOverlay");
-    if (!overlay) return;
-    // ensure latest settings are reflected in inputs
+    // ensure latest settings are reflected in inputs before opening
     const mainInput = document.getElementById("themeMainBg");
     const panelInput = document.getElementById("themePanelBg");
     const canvasInput = document.getElementById("themeCanvasBg");
@@ -53,37 +93,16 @@ function openSettingsPanel() {
     if (buttonBgInput) buttonBgInput.value = state.themeSettings.buttonBg;
     if (buttonTextInput) buttonTextInput.value = state.themeSettings.buttonText;
 
-    overlay.style.display = "flex";
+    updatePresetHighlight();
+    openDialog("settingsDialog");
 }
 
-function closeSettingsPanel() {
-    const overlay = document.getElementById("settingsOverlay");
-    if (overlay) overlay.style.display = "none";
-}
-
-function openHelpPanel() {
-    const overlay = document.getElementById("helpOverlay");
-    if (overlay) overlay.style.display = "flex";
-}
-
-function closeHelpPanel() {
-    const overlay = document.getElementById("helpOverlay");
-    if (overlay) overlay.style.display = "none";
-}
-
-function openChangelog() {
-    const overlay = document.getElementById("changelogOverlay");
-    if (overlay) overlay.style.display = "flex";
-}
-
-function closeChangelog() {
-    const overlay = document.getElementById("changelogOverlay");
-    if (overlay) overlay.style.display = "none";
-}
-
-function openExperimentalWarning() {
-    alert("\u26A0\uFE0F Experimental Features Warning\n\nGimport and large animations are experimental, as is Freeform mode.\n\nG-Mode and I-Mode are mainly designed for importing and exporting and can cause some slight issues to occur.");
-}
+function closeSettingsPanel() { closeDialog("settingsDialog"); }
+function openHelpPanel() { openDialog("helpDialog"); }
+function closeHelpPanel() { closeDialog("helpDialog"); }
+function openChangelog() { openDialog("changelogDialog"); }
+function closeChangelog() { closeDialog("changelogDialog"); }
+function openExperimentalWarning() { openDialog("warningDialog"); }
 
 // ── Theme UI actions ─────────────────────────────────────────────────────────
 
@@ -102,12 +121,17 @@ function saveThemeSettingsFromUI() {
     if (buttonBgInput && buttonBgInput.value) state.themeSettings.buttonBg = buttonBgInput.value;
     if (buttonTextInput && buttonTextInput.value) state.themeSettings.buttonText = buttonTextInput.value;
 
+    // Custom color change clears the active preset
+    state.activeThemePreset = null;
+    updatePresetHighlight();
+
     persistThemeSettings();
     applyThemeSettings();
 }
 
 function resetThemeToDefaults() {
     state.themeSettings = { ...themeDefaults };
+    state.activeThemePreset = "defaultDark";
     persistThemeSettings();
     applyThemeSettings();
     // refresh UI inputs if panel is open
@@ -118,9 +142,23 @@ function applyThemePreset(key) {
     const preset = themePresets[key];
     if (!preset) return;
     state.themeSettings = { ...themeDefaults, ...preset };
+    state.activeThemePreset = key;
     persistThemeSettings();
     applyThemeSettings();
-    openSettingsPanel();
+    updatePresetHighlight();
+    // refresh color inputs if panel is open
+    const mainInput = document.getElementById("themeMainBg");
+    if (mainInput) mainInput.value = state.themeSettings.mainBg;
+    const panelInput = document.getElementById("themePanelBg");
+    if (panelInput) panelInput.value = state.themeSettings.panelBg;
+    const canvasInput = document.getElementById("themeCanvasBg");
+    if (canvasInput) canvasInput.value = state.themeSettings.canvasBg;
+    const gridInput = document.getElementById("themeGridBg");
+    if (gridInput) gridInput.value = state.themeSettings.gridBg;
+    const buttonBgInput = document.getElementById("themeButtonBg");
+    if (buttonBgInput) buttonBgInput.value = state.themeSettings.buttonBg;
+    const buttonTextInput = document.getElementById("themeButtonText");
+    if (buttonTextInput) buttonTextInput.value = state.themeSettings.buttonText;
 }
 
 // ── Theme toggle ─────────────────────────────────────────────────────────────
@@ -164,6 +202,17 @@ export function initTheme() {
     document.getElementById('closeSettingsBtn')?.addEventListener('click', closeSettingsPanel);
     document.getElementById('closeHelpBtn')?.addEventListener('click', closeHelpPanel);
     document.getElementById('closeChangelogBtn')?.addEventListener('click', closeChangelog);
+    document.getElementById('closeWarningBtn')?.addEventListener('click', () => closeDialog("warningDialog"));
+
+    // Click-outside-to-close for all app dialogs
+    document.querySelectorAll('.app-dialog').forEach(dialog => {
+        dialog.addEventListener('click', (e) => {
+            // The backdrop click lands on the <dialog> element itself
+            if (e.target === dialog) {
+                dialog.close();
+            }
+        });
+    });
 }
 
 // ── Exports ──────────────────────────────────────────────────────────────────

@@ -200,17 +200,17 @@ export function applyBinblockPayload(payload) {
     if (typeof payload.animateMode === "boolean") {
         state.animateMode = payload.animateMode;
         const btn = document.getElementById("animateToggle");
-        const animControls = document.getElementById("animationControls");
+        const frameGroup = document.getElementById("ribbonFrameGroup");
         const saveGifBtn = document.getElementById("saveGifBtn");
         if (btn) {
             btn.textContent = state.animateMode ? "Animate: On" : "Animate: Off";
             btn.classList.toggle("tool-active", state.animateMode);
         }
-        if (animControls) {
-            animControls.style.display = state.animateMode ? "flex" : "none";
+        if (frameGroup) {
+            frameGroup.style.display = state.animateMode ? "flex" : "none";
         }
         if (saveGifBtn) {
-            saveGifBtn.style.display = state.animateMode ? "inline-block" : "none";
+            saveGifBtn.style.display = state.animateMode ? "" : "none";
         }
     }
 

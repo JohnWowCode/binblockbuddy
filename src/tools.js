@@ -20,7 +20,7 @@ export function setToolCallbacks(cbs) {
 
 export function toggleMirror() {
     state.mirrorEnabled = !state.mirrorEnabled;
-    const btn = document.querySelector("#toolControls button:nth-child(4)");
+    const btn = document.getElementById("mirrorToolBtn");
     if (btn) {
         btn.textContent = state.mirrorEnabled ? "Mirror ON" : "Mirror";
     }
@@ -28,19 +28,16 @@ export function toggleMirror() {
 
 // ── Tool switching ───────────────────────────────────────────────────────────
 
+const TOOL_BTN_IDS = { brush: "brushToolBtn", bucket: "bucketToolBtn", select: "selectToolBtn", mirror: "mirrorToolBtn" };
+
 export function setTool(tool) {
     state.currentTool = tool;
-    const toolBar = document.getElementById("toolControls");
-    if (toolBar) {
-        Array.from(toolBar.children).forEach(btn => btn.classList.remove("tool-active"));
-        if (tool === "brush") toolBar.children[0]?.classList.add("tool-active");
-        else if (tool === "bucket") toolBar.children[1]?.classList.add("tool-active");
-        else if (tool === "select") toolBar.children[2]?.classList.add("tool-active");
-        else if (tool === "mirror") toolBar.children[3]?.classList.add("tool-active");
-    }
-    const selControls = document.getElementById("selectControls");
-    if (selControls) {
-        selControls.style.display = (tool === "select") ? "flex" : "none";
+    Object.values(TOOL_BTN_IDS).forEach(id => document.getElementById(id)?.classList.remove("tool-active"));
+    const activeId = TOOL_BTN_IDS[tool];
+    if (activeId) document.getElementById(activeId)?.classList.add("tool-active");
+    const selGroup = document.getElementById("ribbonSelectGroup");
+    if (selGroup) {
+        selGroup.style.display = (tool === "select") ? "flex" : "none";
     }
 
     // When Select tool is clicked, default to "select" sub-mode unless user is in drag mode
@@ -387,18 +384,11 @@ export function handleSelectionActionAt(targetR, targetC) {
 // ── Initialization ───────────────────────────────────────────────────────────
 
 export function initTools() {
-    // Tool buttons in #toolControls
-    const toolControls = document.getElementById('toolControls');
-    if (toolControls) {
-        // Brush button (first child)
-        toolControls.children[0]?.addEventListener('click', () => setTool('brush'));
-        // Bucket button (second child)
-        toolControls.children[1]?.addEventListener('click', () => setTool('bucket'));
-        // Select button (third child)
-        toolControls.children[2]?.addEventListener('click', () => setTool('select'));
-        // Mirror button (fourth child)
-        toolControls.children[3]?.addEventListener('click', toggleMirror);
-    }
+    // Tool buttons (by ID)
+    document.getElementById('brushToolBtn')?.addEventListener('click', () => setTool('brush'));
+    document.getElementById('bucketToolBtn')?.addEventListener('click', () => setTool('bucket'));
+    document.getElementById('selectToolBtn')?.addEventListener('click', () => setTool('select'));
+    document.getElementById('mirrorToolBtn')?.addEventListener('click', toggleMirror);
 
     // Selection sub-mode buttons
     document.getElementById('dragBtn')?.addEventListener('click', () => setSelectionMode('drag'));

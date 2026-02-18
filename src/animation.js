@@ -22,7 +22,7 @@ export function setAnimationCallbacks(cbs) {
 export function toggleAnimateMode() {
     state.animateMode = !state.animateMode;
     const btn = document.getElementById("animateToggle");
-    const animControls = document.getElementById("animationControls");
+    const frameGroup = document.getElementById("ribbonFrameGroup");
     const saveGifBtn = document.getElementById("saveGifBtn");
 
     if (btn) {
@@ -34,12 +34,12 @@ export function toggleAnimateMode() {
         }
     }
 
-    if (animControls) {
-        animControls.style.display = state.animateMode ? "flex" : "none";
+    if (frameGroup) {
+        frameGroup.style.display = state.animateMode ? "flex" : "none";
     }
 
     if (saveGifBtn) {
-        saveGifBtn.style.display = state.animateMode ? "inline-block" : "none";
+        saveGifBtn.style.display = state.animateMode ? "" : "none";
     }
 
     if (state.animateMode) {
@@ -733,15 +733,6 @@ export function initAnimation() {
     document.getElementById('addFrameBtn')?.addEventListener('click', addFrame);
     document.getElementById('deleteFrameBtn')?.addEventListener('click', deleteFrame);
     document.getElementById('duplicateFrameBtn')?.addEventListener('click', duplicateFrame);
-
-    // Fallback: try positional buttons within animationControls
-    const animControls = document.getElementById('animationControls');
-    if (animControls) {
-        const buttons = animControls.querySelectorAll('button');
-        // Order: prev(0), next(1), play/stop(2), add(3), delete(4), duplicate(5)
-        if (buttons[0] && !buttons[0].id) buttons[0].addEventListener('click', prevFrame);
-        if (buttons[1] && !buttons[1].id) buttons[1].addEventListener('click', nextFrame);
-    }
 
     // Save GIF button
     document.getElementById('saveGifBtn')?.addEventListener('click', saveGif);

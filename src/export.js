@@ -394,20 +394,20 @@ function renderTips() {
     });
 }
 
-// ── Preview modal ───────────────────────────────────────────────────────────
+// ── Preview dialog ──────────────────────────────────────────────────────────
 
 export function openPreviewModal() {
-    const modal = document.getElementById("previewModal");
+    const dialog = document.getElementById("previewDialog");
     const content = document.getElementById("previewModalContent");
     const preview = document.getElementById("exportPreview");
-    if (!modal || !content || !preview) return;
+    if (!dialog || !content || !preview) return;
     content.innerHTML = preview.innerHTML;
-    modal.style.display = "flex";
+    if (!dialog.open) dialog.showModal();
 }
 
 export function closePreviewModal() {
-    const modal = document.getElementById("previewModal");
-    if (modal) modal.style.display = "none";
+    const dialog = document.getElementById("previewDialog");
+    if (dialog && dialog.open) dialog.close();
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
